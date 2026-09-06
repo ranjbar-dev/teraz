@@ -1,0 +1,343 @@
+'use client';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import {
+  Save,
+  Building2,
+  SlidersHorizontal,
+  ReceiptText,
+  Check,
+  ArrowUpLeft,
+  Info,
+  BookOpen,
+  Search,
+} from 'lucide-react';
+import { useApp } from './provider';
+import { PageHeading } from './ui';
+import { Logo, Icon } from './icons';
+import { DataTable } from './data-table';
+import { useRows } from './modules';
+export function Settings() {
+  const { boot, api, notify, reload } = useApp();
+  const [values, setValues] = useState<Record<string, string | number>>({});
+  const [busy, setBusy] = useState(false);
+  const [tab, setTab] = useState('general');
+  useEffect(() => {
+    if (boot) setValues(boot.settings);
+  }, [boot]);
+  if (boot?.user.role !== 'مدیر')
+    return <div className="empty-state">تنظیمات فقط برای مدیر در دسترس است.</div>;
+  const set = (key: string, value: string | number) => setValues((v) => ({ ...v, [key]: value }));
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await api('settings', { method: 'PATCH', body: JSON.stringify(values) });
+      await reload();
+      notify('تنظیمات شرکت ذخیره شد.');
+    } catch (e) {
+      notify((e as Error).message, true);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <PageHeading
+        eyebrow="فضای کاری، به شیوهٔ شما"
+        title="تنظیمات"
+        description="تنظیمات نمایش، فاکتورها و اطلاعات کسب‌وکارتان را شخصی‌سازی کنید."
+      />
+      <div className="settings-layout">
+        <nav className="settings-nav">
+          {[
+            { key: 'general', label: 'عمومی و نمایش', icon: 'building' },
+            { key: 'invoice', label: 'فاکتور و مالیات', icon: 'receipt' },
+            { key: 'workspace', label: 'فضای کاری', icon: 'shield' },
+          ].map((t) => (
+            <button
+              key={t.key}
+              className={tab === t.key ? 'selected' : ''}
+              onClick={() => setTab(t.key)}
+            >
+              <Icon name={t.icon} size={19} />
+              {t.label}
+            </button>
+          ))}
+        </nav>
+        <form className="panel form-panel settings-panel" onSubmit={save}>
+          <h2>
+            {tab === 'general'
+              ? 'تنظیمات عمومی'
+              : tab === 'invoice'
+                ? 'پیش‌فرض‌های فاکتور'
+                : 'مدیریت فضای کاری'}
+          </h2>
+          <p className="muted">این تنظیمات فقط روی شرکت انتخاب‌شده اعمال می‌شود.</p>
+          {tab === 'general' && (
+            <div className="form-grid">
+              <label className="field">
+                <span>واحد پول پیش‌فرض</span>
+                <select
+                  className="input"
+                  value={values.currency || 'تومان'}
+                  onChange={(e) => set('currency', e.target.value)}
+                >
+                  {['تومان', 'ریال', 'دلار', 'یورو', 'درهم'].map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>تقویم</span>
+                <select
+                  className="input"
+                  value={values.calendar || 'شمسی'}
+                  onChange={(e) => set('calendar', e.target.value)}
+                >
+                  <option>شمسی</option>
+                  <option>میلادی</option>
+                </select>
+              </label>
+              <label className="field">
+                <span>نمایش اعداد</span>
+                <select
+                  className="input"
+                  value={values.digits || 'فارسی'}
+                  onChange={(e) => set('digits', e.target.value)}
+                >
+                  <option>فارسی</option>
+                  <option>لاتین</option>
+                </select>
+              </label>
+              <label className="field">
+                <span>تلفن</span>
+                <input
+                  className="input"
+                  value={values.phone || ''}
+                  onChange={(e) => set('phone', e.target.value)}
+                />
+              </label>
+              <label className="field field-full">
+                <span>نشانی</span>
+                <textarea
+                  className="input"
+                  value={values.address || ''}
+                  onChange={(e) => set('address', e.target.value)}
+                  rows={3}
+                />
+              </label>
+              <div className="theme-preview field-full">
+                <span className="theme-swatch" />
+                <div>
+                  <strong>روشن، آرام، خوانا</strong>
+                  <p>تم روشن تراز · رنگ سبز · قلم وزیرمتن</p>
+                </div>
+                <Check size={21} />
+              </div>
+            </div>
+          )}
+          {tab === 'invoice' && (
+            <div className="form-grid">
+              <label className="field">
+                <span>نرخ پیش‌فرض مالیات (%)</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  className="input"
+                  value={values.taxRate ?? 10}
+                  onChange={(e) => set('taxRate', e.target.value)}
+                />
+                <small className="field-help">نرخ آزمایشی است و برای هر ردیف قابل تغییر است.</small>
+              </label>
+              <label className="field">
+                <span>پیشوند شماره فاکتور</span>
+                <input
+                  className="input"
+                  value={values.invoicePrefix || 'TR'}
+                  onChange={(e) => set('invoicePrefix', e.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span>مهلت پرداخت (روز)</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="365"
+                  className="input"
+                  value={values.paymentTerms ?? 30}
+                  onChange={(e) => set('paymentTerms', e.target.value)}
+                />
+              </label>
+              <label className="field field-full">
+                <span>یادداشت پایین فاکتور</span>
+                <textarea
+                  className="input"
+                  rows={4}
+                  value={values.invoiceNote || ''}
+                  onChange={(e) => set('invoiceNote', e.target.value)}
+                />
+              </label>
+              <div className="form-note field-full">
+                <Info size={18} />
+                <p>
+                  تغییر نرخ مالیات، اطلاعات اسناد قبلی را تغییر نمی‌دهد. نرخ هر سند در زمان ثبت
+                  نگهداری می‌شود.
+                </p>
+              </div>
+            </div>
+          )}
+          {tab === 'workspace' && (
+            <div className="workspace-settings">
+              <div className="form-note">
+                <Icon name="shield" size={22} />
+                <p>
+                  اطلاعات آزمایشی از API داخلی Next.js دریافت می‌شوند و روی دیسک همین سرور باقی
+                  می‌مانند. هر شرکت، اطلاعات و تنظیمات مستقل دارد.
+                </p>
+              </div>
+              {[
+                { key: 'companies', name: 'شرکت‌ها و اطلاعات ثبتی' },
+                { key: 'branches', name: 'شعبه‌ها' },
+                { key: 'fiscal-years', name: 'سال‌های مالی و بستن دوره' },
+                { key: 'currencies', name: 'ارزها و نرخ‌های آزمایشی' },
+                { key: 'users', name: 'کاربران و سطح دسترسی' },
+                { key: 'activity', name: 'تاریخچه فعالیت‌ها' },
+              ].map((l) => (
+                <Link key={l.key} href={`/${l.key}`}>
+                  {l.name}
+                  <ArrowUpLeft size={17} />
+                </Link>
+              ))}
+            </div>
+          )}
+          {tab !== 'workspace' && (
+            <div className="settings-save">
+              <button className="btn btn-primary" disabled={busy}>
+                <Save size={17} />
+                {busy ? 'در حال ذخیره…' : 'ذخیره تغییرات'}
+              </button>
+            </div>
+          )}
+        </form>
+      </div>
+    </>
+  );
+}
+export function Activity() {
+  const { rows, error } = useRows('activity');
+  return (
+    <>
+      <PageHeading
+        eyebrow="شفافیت در هر ثبت"
+        title="تاریخچه فعالیت‌ها"
+        description="ثبت و ویرایش اطلاعات، همراه با نام کاربر و زمان انجام عملیات."
+      />
+      {error ? (
+        <p>{error}</p>
+      ) : (
+        <div className="panel">
+          <DataTable
+            title="تاریخچه فعالیت‌ها"
+            rows={rows || []}
+            columns={[
+              { key: 'message', label: 'فعالیت' },
+              { key: 'user', label: 'کاربر' },
+              { key: 'date', label: 'تاریخ', type: 'date' },
+              {
+                key: 'time',
+                label: 'ساعت',
+                text: (r) =>
+                  new Date(String(r.date)).toLocaleTimeString('fa-IR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  }),
+              },
+            ]}
+          />
+        </div>
+      )}
+    </>
+  );
+}
+const helpItems = [
+  [
+    'چطور شروع کنم؟',
+    'از منوی بالای صفحه شرکت، شعبه و سال مالی را انتخاب کنید. ابتدا اشخاص و کالاها را تعریف کنید، سپس فاکتور جدید بسازید. داده‌های نمونه برای دو شرکت از قبل آماده‌اند.',
+  ],
+  [
+    'چه چیزی روی گزارش‌ها اثر می‌گذارد؟',
+    'فاکتورها، تراکنش‌ها و اسناد با وضعیت تأییدشده روی گزارش‌ها اثر می‌گذارند. چک با وصول، حقوق با تأیید یا پرداخت و تولید با تکمیل اثر می‌گذارد. لغو یا بازگرداندن به پیش‌نویس، اثر ثبت را برمی‌دارد.',
+  ],
+  [
+    'چطور یک فاکتور را تسویه کنم؟',
+    'در صفحه دریافت‌ها برای فروش یا پرداخت‌ها برای خرید، طرف حساب و فاکتور مرتبط را انتخاب کنید. ارز، شعبه و سال مالی تراکنش باید با فاکتور یکسان باشند. با تأیید تراکنش، ماندهٔ فاکتور به‌روزرسانی می‌شود.',
+  ],
+  [
+    'جست‌وجوی جدول‌ها چگونه است؟',
+    'جست‌وجوی عمومی تمام فیلدها را بررسی می‌کند. زیر عنوان هر ستون نیز فیلتر مستقل دارید. با دکمه ستون‌ها، فیلدهای دیگر را نمایش دهید. کلیک روی عنوان ستون، مرتب‌سازی را تغییر می‌دهد.',
+  ],
+  [
+    'خروجی Excel و چاپ چطور کار می‌کند؟',
+    'خروجی اکسل، تمام ردیف‌های فیلترشده یا ردیف‌های انتخاب‌شده را در فایل xlsx ذخیره می‌کند. در جزئیات اسناد یا صفحه گزارش، چاپ را بزنید و برای PDF از گزینه Save as PDF مرورگر استفاده کنید.',
+  ],
+  [
+    'نرخ ارز و مالیات واقعی هستند؟',
+    'خیر. نرخ‌های اولیه آزمایشی‌اند و از بخش ارزها و تنظیمات قابل تغییر هستند. نرخ تبدیل هر سند هنگام ثبت ذخیره می‌شود. دفاتر حسابداری بر مبنای تومان هستند.',
+  ],
+  [
+    'تولید و استهلاک چگونه آزمایش می‌شوند؟',
+    'در فرمول ساخت، مواد لازم برای یک محصول را وارد کنید. تکمیل سفارش تولید، مواد را از انبار کم و محصول را اضافه می‌کند. استهلاک با روش خط مستقیم از بهای دارایی، ارزش اسقاط و عمر مفید محاسبه می‌شود.',
+  ],
+  [
+    'تفاوت نقش‌های کاربری چیست؟',
+    'مدیر تمام بخش‌ها را مدیریت می‌کند. حسابدار اطلاعات مالی و عملیاتی را ثبت و ویرایش می‌کند. مشاهده‌گر به فهرست‌ها، جزئیات، گزارش‌ها و خروجی دسترسی دارد و نمی‌تواند داده‌ها را تغییر دهد.',
+  ],
+  [
+    'داده‌ها کجا ذخیره می‌شوند؟',
+    'در فایل محلی سرور از طریق API داخلی Next.js. تغییرات پس از راه‌اندازی مجدد باقی می‌مانند. این نسخه برای تست رابط و گردش‌های آزمایشی طراحی شده است.',
+  ],
+];
+export function Help() {
+  const [q, setQ] = useState('');
+  return (
+    <>
+      <PageHeading
+        eyebrow="همراه شما در تراز"
+        title="راهنما و شروع سریع"
+        description="هر چیزی که برای اولین ثبت و آزمایش امکانات نیاز دارید."
+      />
+      <div className="help-hero">
+        <BookOpen size={32} />
+        <h2>حسابداری، یک قدم ساده‌تر.</h2>
+        <div className="table-search">
+          <Search size={18} />
+          <input
+            aria-label="جست‌وجو در راهنما"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="دنبال چه چیزی هستید؟"
+          />
+        </div>
+      </div>
+      <div className="help-list">
+        {helpItems
+          .filter((item) => item.join(' ').includes(q))
+          .map(([question, answer]) => (
+            <details className="panel" key={question}>
+              <summary>
+                {question}
+                <PlusFallback />
+              </summary>
+              <p>{answer}</p>
+            </details>
+          ))}
+      </div>
+    </>
+  );
+}
+function PlusFallback() {
+  return <span className="help-plus">+</span>;
+}
