@@ -1,30 +1,27 @@
 'use client';
+import { SearchSelect } from './search-select';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import {
-  Save,
-  Building2,
-  SlidersHorizontal,
-  ReceiptText,
-  Check,
-  ArrowUpLeft,
-  Info,
-  BookOpen,
-  Search,
-} from 'lucide-react';
+import { Save, Check, ArrowUpLeft, Info, BookOpen, Search } from 'lucide-react';
 import { useApp } from './provider';
 import { PageHeading } from './ui';
-import { Logo, Icon } from './icons';
+import { Icon } from './icons';
 import { DataTable } from './data-table';
 import { useRows } from './modules';
 export function Settings() {
-  const { boot, api, notify, reload } = useApp();
+  const { boot, api, notify, reload, setUnsaved } = useApp();
   const [values, setValues] = useState<Record<string, string | number>>({});
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState('general');
   useEffect(() => {
     if (boot) setValues(boot.settings);
   }, [boot]);
+  useEffect(() => {
+    setUnsaved(
+      !!Object.keys(values).length && JSON.stringify(values) !== JSON.stringify(boot?.settings),
+    );
+    return () => setUnsaved(false);
+  }, [values, boot, setUnsaved]);
   if (boot?.user.role !== 'مدیر')
     return <div className="empty-state">تنظیمات فقط برای مدیر در دسترس است.</div>;
   const set = (key: string, value: string | number) => setValues((v) => ({ ...v, [key]: value }));
@@ -33,6 +30,7 @@ export function Settings() {
     setBusy(true);
     try {
       await api('settings', { method: 'PATCH', body: JSON.stringify(values) });
+      setUnsaved(false);
       await reload();
       notify('تنظیمات شرکت ذخیره شد.');
     } catch (e) {
@@ -78,7 +76,7 @@ export function Settings() {
             <div className="form-grid">
               <label className="field">
                 <span>واحد پول پیش‌فرض</span>
-                <select
+                <SearchSelect
                   className="input"
                   value={values.currency || 'تومان'}
                   onChange={(e) => set('currency', e.target.value)}
@@ -86,29 +84,29 @@ export function Settings() {
                   {['تومان', 'ریال', 'دلار', 'یورو', 'درهم'].map((c) => (
                     <option key={c}>{c}</option>
                   ))}
-                </select>
+                </SearchSelect>
               </label>
               <label className="field">
                 <span>تقویم</span>
-                <select
+                <SearchSelect
                   className="input"
                   value={values.calendar || 'شمسی'}
                   onChange={(e) => set('calendar', e.target.value)}
                 >
                   <option>شمسی</option>
                   <option>میلادی</option>
-                </select>
+                </SearchSelect>
               </label>
               <label className="field">
                 <span>نمایش اعداد</span>
-                <select
+                <SearchSelect
                   className="input"
                   value={values.digits || 'فارسی'}
                   onChange={(e) => set('digits', e.target.value)}
                 >
                   <option>فارسی</option>
                   <option>لاتین</option>
-                </select>
+                </SearchSelect>
               </label>
               <label className="field">
                 <span>تلفن</span>

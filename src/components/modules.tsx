@@ -1,23 +1,19 @@
 'use client';
+import { SearchSelect } from './search-select';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Plus,
   ArrowUpLeft,
-  Download,
   Pencil,
   Trash2,
   Printer,
   Copy,
-  Check,
   Save,
-  ArrowRight,
   RefreshCw,
-  FileText,
   AlertCircle,
-  ArrowLeftRight,
-  ChevronLeft,
+  LockKeyhole,
 } from 'lucide-react';
 import { useApp } from './provider';
 import { PageHeading, Loading, Badge, Confirm } from './ui';
@@ -43,6 +39,8 @@ export function useRows(key: string) {
   };
   useEffect(() => {
     let cancelled = false;
+    setRows(null);
+    setError('');
     api<{ rows: Row[] }>(key)
       .then((d) => {
         if (!cancelled) setRows(d.rows);
@@ -300,11 +298,11 @@ function FieldInput({
   onChange: (v: string | number) => void;
   values: Partial<Row>;
 }) {
-  const { boot, fmt } = useApp();
+  const { boot } = useApp();
   const options = field.ref
     ? boot?.lookups[field.ref]?.filter(
         (r) =>
-          r.status !== 'غیرفعال' &&
+          (r.status !== 'غیرفعال' || r.id === value) &&
           (field.ref !== 'products' ||
             !['stock', 'production'].includes(String(values._module)) ||
             r.type !== 'خدمت'),
@@ -321,7 +319,7 @@ function FieldInput({
     );
   if (field.type === 'select')
     return (
-      <select
+      <SearchSelect
         className="input"
         aria-label={field.label}
         value={String(value ?? '')}
@@ -341,7 +339,7 @@ function FieldInput({
                 {o}
               </option>
             ))}
-      </select>
+      </SearchSelect>
     );
   if (field.type === 'textarea')
     return (
@@ -381,17 +379,20 @@ function FieldInput({
   );
 }
 export function EntityEditor({ mod, id }: { mod: Module; id?: string }) {
-  const { api, boot, notify, reload, fmt, canWrite } = useApp();
+  const { api, boot, notify, reload, fmt, canWrite, setUnsaved } = useApp();
   const router = useRouter();
   const [values, setValues] = useState<Partial<Row>>({});
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [dirty, setDirty] = useState(false);
+  const [loadError, setLoadError] = useState('');
   useEffect(() => {
     if (!boot) return;
     let cancelled = false;
     const setup = async () => {
+      setLoaded(false);
+      setLoadError('');
       try {
         if (id) {
           const row = await api<Row>(`${mod.key}/${id}`);
@@ -458,7 +459,7 @@ export function EntityEditor({ mod, id }: { mod: Module; id?: string }) {
             });
         }
       } catch (e) {
-        if (!cancelled) setError((e as Error).message);
+        if (!cancelled) setLoadError((e as Error).message);
       } finally {
         if (!cancelled) setLoaded(true);
       }
@@ -469,12 +470,9 @@ export function EntityEditor({ mod, id }: { mod: Module; id?: string }) {
     };
   }, [id, mod, api, boot]);
   useEffect(() => {
-    const before = (e: BeforeUnloadEvent) => {
-      if (dirty) e.preventDefault();
-    };
-    window.addEventListener('beforeunload', before);
-    return () => window.removeEventListener('beforeunload', before);
-  }, [dirty]);
+    setUnsaved(dirty);
+    return () => setUnsaved(false);
+  }, [dirty, setUnsaved]);
   const update = (key: string, value: string | number | Line[]) => {
     setDirty(true);
     setValues((v) => {
@@ -501,6 +499,7 @@ export function EntityEditor({ mod, id }: { mod: Module; id?: string }) {
         body: JSON.stringify(body),
       });
       setDirty(false);
+      setUnsaved(false);
       notify(`${mod.singular} با موفقیت ذخیره شد.`);
       await reload();
       router.push(`/${mod.key}/${result.id}`);
@@ -512,6 +511,31 @@ export function EntityEditor({ mod, id }: { mod: Module; id?: string }) {
     }
   }
   if (!loaded) return <Loading />;
+  if (loadError)
+    return (
+      <div className="empty-state">
+        <AlertCircle size={30} />
+        <h2>بارگذاری اطلاعات انجام نشد</h2>
+        <p>{loadError}</p>
+        <Link className="btn" href={`/${mod.key}`}>
+          بازگشت به فهرست
+        </Link>
+      </div>
+    );
+  if (
+    !masterKeys.has(mod.key) &&
+    boot?.years.find((y) => y.id === boot.scope.yearId)?.status === 'بسته'
+  )
+    return (
+      <div className="empty-state">
+        <LockKeyhole size={30} />
+        <h2>سال مالی بسته است</h2>
+        <p>برای ثبت یا ویرایش، یک سال مالی باز را از نوار بالای صفحه انتخاب کنید.</p>
+        <Link className="btn" href={`/${mod.key}`}>
+          بازگشت به فهرست
+        </Link>
+      </div>
+    );
   if (!canWrite || (mod.admin && boot?.user.role !== 'مدیر'))
     return (
       <div className="empty-state">
@@ -567,7 +591,7 @@ export function EntityEditor({ mod, id }: { mod: Module; id?: string }) {
                 <span>
                   شعبه ثبت <b>*</b>
                 </span>
-                <select
+                <SearchSelect
                   className="input"
                   aria-label="شعبه ثبت"
                   value={String(values.branchId || '')}
@@ -582,7 +606,7 @@ export function EntityEditor({ mod, id }: { mod: Module; id?: string }) {
                         {String(b.name)}
                       </option>
                     ))}
-                </select>
+                </SearchSelect>
               </label>
             )}
             {mod.fields
@@ -609,7 +633,7 @@ export function EntityEditor({ mod, id }: { mod: Module; id?: string }) {
             {mod.status && (
               <label className="field">
                 <span>وضعیت</span>
-                <select
+                <SearchSelect
                   className="input"
                   aria-label="وضعیت"
                   value={String(values.status || '')}
@@ -620,7 +644,7 @@ export function EntityEditor({ mod, id }: { mod: Module; id?: string }) {
                       {s}
                     </option>
                   ))}
-                </select>
+                </SearchSelect>
               </label>
             )}
           </div>
@@ -929,7 +953,7 @@ function LineEditor({
               <tr key={l.id}>
                 <td>{fmt(i + 1)}</td>
                 <td>
-                  <select
+                  <SearchSelect
                     className="input line-product"
                     aria-label={`${journal ? 'حساب' : 'کالا'} ردیف ${i + 1}`}
                     required
@@ -938,13 +962,16 @@ function LineEditor({
                   >
                     <option value="">انتخاب {journal ? 'حساب' : 'کالا'}</option>
                     {boot?.lookups[journal ? 'accounts' : 'products']
-                      ?.filter((r) => r.status !== 'غیرفعال')
+                      ?.filter(
+                        (r) =>
+                          r.status !== 'غیرفعال' || r.id === (journal ? l.accountId : l.productId),
+                      )
                       .map((p) => (
                         <option key={p.id} value={p.id}>
                           {String(p.code)} · {String(p.name)}
                         </option>
                       ))}
-                  </select>
+                  </SearchSelect>
                 </td>
                 <td>
                   <input
@@ -1053,7 +1080,6 @@ export function EntityDetail({ mod, id }: { mod: Module; id: string }) {
   const company = boot?.companies.find((c) => c.id === row.companyId);
   const person = boot?.lookups.people?.find((p) => p.id === row.personId);
   const total = invoiceTotals(row);
-  const lines = (row.lines || []) as Line[];
   const isInvoice = mod.kind === 'invoice';
   const transactions = ['sales', 'purchases'].includes(mod.key)
     ? boot?.lookups[mod.key === 'sales' ? 'receipts' : 'payments']?.filter(
@@ -1094,18 +1120,25 @@ export function EntityDetail({ mod, id }: { mod: Module; id: string }) {
           </div>
           {canWrite && (
             <div>
-              {mod.status
-                ?.filter((s) => s !== row.status)
-                .map((s) => (
-                  <button
-                    key={s}
+              {mod.status && (
+                <label className="status-picker">
+                  <span>تغییر وضعیت</span>
+                  <SearchSelect
+                    aria-label="تغییر وضعیت سند"
                     disabled={busy}
-                    className={`btn btn-small ${s === 'تأیید شده' ? 'btn-primary' : ''}`}
-                    onClick={() => setConfirm(s)}
+                    value={String(row.status || '')}
+                    onChange={(e) => {
+                      if (e.target.value !== row.status) setConfirm(e.target.value);
+                    }}
                   >
-                    {s === 'تأیید شده' && <Check size={15} />}تغییر به {s}
-                  </button>
-                ))}
+                    {mod.status.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </SearchSelect>
+                </label>
+              )}
               <button
                 className="icon-button danger-text"
                 aria-label="حذف رکورد"

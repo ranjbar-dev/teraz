@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import '@fontsource-variable/vazirmatn';
 import './globals.css';
+import './refinement.css';
 export const metadata: Metadata = {
   title: { default: 'تراز | حسابِ همه‌چیز، روشن', template: '%s | تراز' },
   description: 'فضای یکپارچهٔ حسابداری، مدیریت مالی و کسب‌وکار تراز',

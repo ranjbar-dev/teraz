@@ -1,4 +1,5 @@
 'use client';
+import { SearchSelect } from './search-select';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -19,9 +20,10 @@ import {
 import { modules, reports } from '@/lib/modules';
 import { Icon, Logo } from './icons';
 import { useApp } from './provider';
+import { normalizeSearch } from '@/lib/search';
 
 export function Shell({ children }: { children: React.ReactNode }) {
-  const { boot, loading, error, setScope, api, scope, date, reload } = useApp();
+  const { boot, loading, error, setScope, api, scope, date, reload, guard, notify } = useApp();
   const pathname = usePathname();
   const router = useRouter();
   const currentKey = pathname.split('/')[1];
@@ -104,7 +106,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         })),
       ),
   ]
-    .filter((r) => r.title.includes(query))
+    .filter((r) => normalizeSearch(r.title).includes(normalizeSearch(query)))
     .slice(0, 15);
   return (
     <div className="app-shell">
@@ -239,7 +241,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               <span className="company-icon">
                 <Icon name="building" size={18} />
               </span>
-              <select
+              <SearchSelect
                 aria-label="انتخاب شرکت"
                 value={boot.scope.companyId}
                 onChange={(e) => setScope({ companyId: e.target.value })}
@@ -251,11 +253,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
                       {String(c.name)}
                     </option>
                   ))}
-              </select>
+              </SearchSelect>
               <ChevronDown size={13} />
             </div>
             <span className="topbar-divider" />
-            <select
+            <SearchSelect
               className="branch-select"
               aria-label="انتخاب شعبه"
               value={scope.branchId || 'all'}
@@ -267,7 +269,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                   {String(b.name)}
                 </option>
               ))}
-            </select>
+            </SearchSelect>
           </div>
           <div className="topbar-left">
             <button className="global-search" onClick={() => setSearchOpen(true)}>
@@ -335,11 +337,16 @@ export function Shell({ children }: { children: React.ReactNode }) {
                   </Link>
                   <button
                     className="danger-text"
-                    onClick={async () => {
-                      await api('auth', { method: 'DELETE' });
-                      localStorage.removeItem('taraz-scope');
-                      router.replace('/login');
-                    }}
+                    onClick={() =>
+                      guard(() => {
+                        void api('auth', { method: 'DELETE' })
+                          .then(() => {
+                            localStorage.removeItem('taraz-scope');
+                            router.replace('/login');
+                          })
+                          .catch((e) => notify(e.message, true));
+                      })
+                    }
                   >
                     <LogOut size={17} /> خروج از حساب
                   </button>
@@ -359,7 +366,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               <Icon name="calendar" size={14} />
               {date(new Date().toISOString())}
             </span>
-            <select
+            <SearchSelect
               aria-label="سال مالی"
               value={boot.scope.yearId}
               onChange={(e) => setScope({ yearId: e.target.value })}
@@ -370,7 +377,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                   {y.status === 'بسته' ? ' · بسته' : ''}
                 </option>
               ))}
-            </select>
+            </SearchSelect>
           </div>
         </div>
         <main

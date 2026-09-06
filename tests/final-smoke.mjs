@@ -1,3 +1,4 @@
+import { selectValue } from './select-helper.mjs';
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 const browser = await chromium.launch({ headless: true, channel: 'msedge' });
@@ -10,7 +11,7 @@ try {
   await page.waitForURL('**/dashboard');
   await page.getByText('نبض مالی کسب‌وکار').waitFor();
   await page.goto('http://localhost:3000/sales/new', { waitUntil: 'networkidle' });
-  await page.getByLabel('ارز', { exact: true }).selectOption('دلار');
+  await selectValue(page, page.getByLabel('ارز', { exact: true }), 'دلار');
   assert.equal(await page.getByLabel('نرخ تبدیل به تومان', { exact: true }).inputValue(), '95000');
   await page.getByLabel('تاریخ', { exact: true }).click();
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
@@ -21,7 +22,7 @@ try {
   const printed = await page.locator('tbody tr').count();
   assert.ok(printed > paginated);
   await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
-  await page.getByLabel('انتخاب شعبه').selectOption('c1-branch-2');
+  await selectValue(page, page.getByLabel('انتخاب شعبه'), 'c1-branch-2');
   await page.goto('http://localhost:3000/reports/inventory', { waitUntil: 'networkidle' });
   assert.equal(await page.locator('tbody .danger-text').count(), 0);
   assert.equal(errors.length, 0, errors.join('; '));

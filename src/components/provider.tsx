@@ -1,8 +1,9 @@
 'use client';
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckCircle2, X, AlertCircle } from 'lucide-react';
 import type { Row, Scope, User } from '@/lib/types';
+import { Confirm } from './ui';
 type Boot = {
   user: User;
   scope: Scope;
@@ -25,6 +26,8 @@ type Context = {
   date: (value: unknown) => string;
   currency: string;
   canWrite: boolean;
+  setUnsaved: (dirty: boolean) => void;
+  guard: (action: () => void) => void;
 };
 const AppContext = createContext<Context>(null!);
 export function useApp() {
@@ -38,6 +41,50 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [toast, setToast] = useState<{ message: string; error: boolean } | null>(null);
+  const requestSequence = useRef(0);
+  const unsaved = useRef(false);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  const setUnsaved = useCallback((dirty: boolean) => {
+    unsaved.current = dirty;
+  }, []);
+  const guard = useCallback((action: () => void) => {
+    if (unsaved.current) setPendingAction(() => action);
+    else action();
+  }, []);
+  useEffect(() => {
+    const navigate = (event: MouseEvent) => {
+      if (
+        !unsaved.current ||
+        event.button !== 0 ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        event.altKey
+      )
+        return;
+      const anchor = (event.target as Element).closest<HTMLAnchorElement>('a[href]');
+      if (
+        !anchor ||
+        anchor.target === '_blank' ||
+        anchor.hasAttribute('download') ||
+        anchor.origin !== location.origin ||
+        anchor.href === location.href
+      )
+        return;
+      event.preventDefault();
+      event.stopPropagation();
+      guard(() => router.push(anchor.pathname + anchor.search + anchor.hash));
+    };
+    const before = (event: BeforeUnloadEvent) => {
+      if (unsaved.current) event.preventDefault();
+    };
+    document.addEventListener('click', navigate, true);
+    window.addEventListener('beforeunload', before);
+    return () => {
+      document.removeEventListener('click', navigate, true);
+      window.removeEventListener('beforeunload', before);
+    };
+  }, [guard, router]);
   useEffect(() => {
     try {
       const stored = localStorage.getItem('taraz-scope');
@@ -48,12 +95,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const api = useCallback(
     async <T,>(path: string, options?: RequestInit): Promise<T> => {
       const params = new URLSearchParams(Object.entries(scope).filter(([, v]) => !!v));
-      const res = await fetch(`/api/${path}${path.includes('?') ? '&' : '?'}${params}`, {
-        ...options,
-        headers: { 'Content-Type': 'application/json', ...options?.headers },
-        cache: 'no-store',
+      let res: Response;
+      try {
+        res = await fetch(`/api/${path}${path.includes('?') ? '&' : '?'}${params}`, {
+          ...options,
+          headers: { 'Content-Type': 'application/json', ...options?.headers },
+          cache: 'no-store',
+        });
+      } catch {
+        throw new Error('ارتباط برقرار نشد. اتصال خود را بررسی کنید و دوباره تلاش کنید.');
+      }
+      const data = await res.json().catch(() => {
+        throw new Error('پاسخ سرور قابل خواندن نیست. دوباره تلاش کنید.');
       });
-      const data = await res.json();
       if (!res.ok) {
         if (res.status === 401) router.replace('/login');
         throw new Error(data.error || 'ارتباط با سرور برقرار نشد.');
@@ -63,14 +117,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [scope, router],
   );
   const reload = useCallback(async () => {
+    const sequence = ++requestSequence.current;
     try {
       const data = await api<Boot>('bootstrap');
+      if (sequence !== requestSequence.current) return;
       setBoot(data);
       setError('');
     } catch (e) {
-      setError((e as Error).message);
+      if (sequence === requestSequence.current) setError((e as Error).message);
     } finally {
-      setLoading(false);
+      if (sequence === requestSequence.current) setLoading(false);
     }
   }, [api]);
   useEffect(() => {
@@ -79,15 +135,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       void reload();
     }
   }, [ready, reload]);
-  const setScope = (value: Partial<Scope>) => {
-    const next = { ...scope, ...value };
-    if (value.companyId && value.companyId !== scope.companyId) {
-      next.branchId = 'all';
-      next.yearId = '';
-    }
-    updateScope(next);
-    localStorage.setItem('taraz-scope', JSON.stringify(next));
-  };
+  const setScope = (value: Partial<Scope>) =>
+    guard(() => {
+      const next = { ...scope, ...value };
+      if (value.companyId && value.companyId !== scope.companyId) {
+        next.branchId = 'all';
+        next.yearId = '';
+      }
+      updateScope(next);
+      localStorage.setItem('taraz-scope', JSON.stringify(next));
+    });
   useEffect(() => {
     if (toast) {
       const timer = setTimeout(() => setToast(null), 4500);
@@ -126,12 +183,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         api,
         fmt,
         date,
+        setUnsaved,
+        guard,
         currency: String(boot?.settings.currency || 'تومان'),
         canWrite: boot?.user.role !== 'مشاهده‌گر',
         notify: (message, error = false) => setToast({ message, error }),
       }}
     >
       {children}
+      {pendingAction && (
+        <Confirm
+          title="تغییرات ذخیره نشده"
+          description="با ترک این فرم، تغییرات ذخیره‌نشده از دست می‌روند. برای ادامهٔ ویرایش، انصراف را بزنید."
+          onClose={() => setPendingAction(null)}
+          onConfirm={() => {
+            unsaved.current = false;
+            const action = pendingAction;
+            setPendingAction(null);
+            action();
+          }}
+        />
+      )}
       {toast && (
         <div className={`toast ${toast.error ? 'toast-error' : ''}`} role="status">
           {toast.error ? <AlertCircle2Fallback /> : <CheckCircle2 size={20} />}

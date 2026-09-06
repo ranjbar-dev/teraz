@@ -1,4 +1,5 @@
 'use client';
+import { SearchSelect } from './search-select';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -14,19 +15,7 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import {
-  Plus,
-  ArrowUpLeft,
-  ArrowDownLeft,
-  ChevronLeft,
-  CalendarDays,
-  ArrowUpRight,
-  CircleArrowDown,
-  CircleArrowUp,
-  Ellipsis,
-  ArrowLeft,
-  Sparkles,
-} from 'lucide-react';
+import { Plus, ArrowUpLeft, ChevronLeft, CalendarDays, ArrowLeft, Sparkles } from 'lucide-react';
 import { useApp } from './provider';
 import { Icon } from './icons';
 import { PageHeading, Loading } from './ui';
@@ -197,7 +186,7 @@ export function Dashboard() {
               <h2>نبض مالی کسب‌وکار</h2>
               <p>روند درآمد و هزینه در طول دوره</p>
             </div>
-            <select
+            <SearchSelect
               className="select-compact"
               aria-label="دوره نمودار"
               value={months}
@@ -205,7 +194,7 @@ export function Dashboard() {
             >
               <option value="6">۶ ماه ابتدای سال</option>
               <option value="12">کل سال مالی</option>
-            </select>
+            </SearchSelect>
           </div>
           <div className="chart-legend">
             <span>

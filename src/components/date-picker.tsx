@@ -1,4 +1,5 @@
 'use client';
+import { SearchSelect } from './search-select';
 import { useEffect, useRef, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { toJalaali, toGregorian, jalaaliMonthLength } from 'jalaali-js';
@@ -43,7 +44,11 @@ export function DatePicker({
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const click = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+      if (
+        !ref.current?.contains(e.target as Node) &&
+        !(e.target as Element).closest('.search-select-popup')
+      )
+        setOpen(false);
     };
     const key = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
@@ -110,7 +115,7 @@ export function DatePicker({
             >
               <ChevronRight size={17} />
             </button>
-            <select
+            <SearchSelect
               aria-label="ماه"
               value={month}
               onChange={(e) => setMonth(Number(e.target.value))}
@@ -120,8 +125,8 @@ export function DatePicker({
                   {m}
                 </option>
               ))}
-            </select>
-            <select
+            </SearchSelect>
+            <SearchSelect
               aria-label="سال تقویم"
               value={year}
               onChange={(e) => setYear(Number(e.target.value))}
@@ -131,7 +136,7 @@ export function DatePicker({
                   {fmt(y).replace(/[٬,]/g, '')}
                 </option>
               ))}
-            </select>
+            </SearchSelect>
             <button
               type="button"
               className="icon-button"

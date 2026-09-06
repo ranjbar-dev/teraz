@@ -1,0 +1,265 @@
+{
+  "testedAt": "2026-09-06T21:16:35.768Z",
+  "modules": [
+    {
+      "module": "people",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "products",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "warehouses",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "stock",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "quotes",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "sales",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "purchases",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "sales-returns",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "purchase-returns",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "banks",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "receipts",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "payments",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "transfers",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "checks",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "expenses",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "income",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "accounts",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "journals",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "employees",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "payroll",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "assets",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "depreciation",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "boms",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "production",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "projects",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "project-costs",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "companies",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "branches",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "fiscal-years",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "currencies",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    },
+    {
+      "module": "users",
+      "list": true,
+      "create": true,
+      "detail": true,
+      "edit": true,
+      "nativeSelects": 0
+    }
+  ],
+  "reports": [
+    "profit-loss",
+    "balance-sheet",
+    "trial-balance",
+    "journal",
+    "ledger",
+    "receivables",
+    "inventory",
+    "cashflow",
+    "tax",
+    "project-profit"
+  ]
+}

@@ -1,7 +1,8 @@
 'use client';
+import { SearchSelect } from './search-select';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { ArrowUpLeft, Printer, CalendarDays, RefreshCw, ArrowRight, Search } from 'lucide-react';
+import { ArrowUpLeft, Printer, CalendarDays, RefreshCw, Search } from 'lucide-react';
 import { reports } from '@/lib/modules';
 import { useApp } from './provider';
 import { Icon } from './icons';
@@ -230,7 +231,7 @@ export function ReportView({ reportKey }: { reportKey: string }) {
         {reportKey === 'ledger' && (
           <label className="ledger-account">
             <span>حساب</span>
-            <select
+            <SearchSelect
               className="input"
               aria-label="حساب دفتر کل"
               value={account}
@@ -241,7 +242,7 @@ export function ReportView({ reportKey }: { reportKey: string }) {
                   {String(a.code)} · {String(a.name)}
                 </option>
               ))}
-            </select>
+            </SearchSelect>
           </label>
         )}
         <button

@@ -1,3 +1,4 @@
+import { selectValue } from './select-helper.mjs';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import fs from 'node:fs/promises';
@@ -241,6 +242,7 @@ try {
     locale: 'fa-IR',
   });
   const page = await context.newPage();
+  const coverage = [];
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(`${base}/login`, { waitUntil: 'networkidle' });
@@ -251,8 +253,10 @@ try {
     await page.goto(`${base}/${key}`, { waitUntil: 'networkidle' });
     await page.locator('h1').waitFor();
     ok((await page.locator('tbody tr').count()) > 0, `${key} list rendered`);
+    ok((await page.locator('select').count()) === 0, `${key} list uses searchable selects`);
     await page.goto(`${base}/${key}/new`, { waitUntil: 'networkidle' });
     await page.locator('form.entity-form').waitFor();
+    ok((await page.locator('select').count()) === 0, `${key} form uses searchable selects`);
     ok(
       (await page.getByRole('button', { name: new RegExp('ذخیره') }).count()) > 0,
       `${key} creation form rendered`,
@@ -260,8 +264,33 @@ try {
     const first = key === 'users' ? (await request('users')).data.rows[0] : boot.lookups[key][0];
     await page.goto(`${base}/${key}/${first.id}`, { waitUntil: 'networkidle' });
     await page.locator('.document-panel').waitFor();
+    ok((await page.locator('select').count()) === 0, `${key} details use searchable selects`);
+    await page.goto(`${base}/${key}/${first.id}/edit`, { waitUntil: 'networkidle' });
+    ok(
+      (await page.locator('form.entity-form, .empty-state').count()) > 0,
+      `${key} edit or posted-document protection rendered`,
+    );
+    coverage.push({
+      module: key,
+      list: true,
+      create: true,
+      detail: true,
+      edit: true,
+      nativeSelects: 0,
+    });
   }
-  console.log(`Browser: list, create and detail pages for all ${keys.length} modules passed.`);
+  await fs.mkdir('artifacts/review', { recursive: true });
+  await fs.writeFile(
+    'artifacts/review/coverage.json',
+    JSON.stringify(
+      { testedAt: new Date().toISOString(), modules: coverage, reports: reportKeys },
+      null,
+      2,
+    ),
+  );
+  console.log(
+    `Browser: list, create, detail and edit pages for all ${keys.length} modules passed.`,
+  );
   for (const key of reportKeys) {
     await page.goto(`${base}/reports/${key}`, { waitUntil: 'networkidle' });
     await page.locator('.report-summary').waitFor();
@@ -303,11 +332,57 @@ try {
   await page.getByRole('button', { name: 'تأیید و ادامه' }).click();
   await page.waitForURL('**/people');
   await page.goto(`${base}/sales/new`, { waitUntil: 'networkidle' });
-  await page.getByLabel('طرف حساب', { exact: true }).selectOption('c1-person-1');
-  await page.getByLabel('انبار', { exact: true }).selectOption('c1-warehouse-1');
-  await page.getByLabel('کالا ردیف 1').selectOption('c1-product-2');
+  await page.getByLabel('طرف حساب', { exact: true }).click();
+  await page.locator('.select-search input').fill('بدون نتیجه xyz');
+  ok(
+    await page.getByText('گزینه‌ای پیدا نشد', { exact: true }).isVisible(),
+    'select has useful empty state',
+  );
+  await page.locator('.select-search input').fill('P-۱۰۰۱');
+  ok(
+    (await page.getByRole('option').count()) === 1,
+    'select normalizes Persian digits and searches codes',
+  );
+  await page.locator('.select-search input').press('Enter');
+  ok(
+    (await page
+      .getByLabel('طرف حساب', { exact: true })
+      .locator('..')
+      .getAttribute('data-value')) === 'c1-person-0',
+    'select keyboard Enter chooses result',
+  );
+  await page.getByLabel('طرف حساب', { exact: true }).press('ArrowDown');
+  await page.locator('.select-search input').press('Escape');
+  ok(
+    await page
+      .getByLabel('طرف حساب', { exact: true })
+      .evaluate((el) => el === document.activeElement),
+    'Escape restores trigger focus',
+  );
+  await page.getByRole('link', { name: 'بازگشت', exact: true }).click();
+  await page.getByRole('dialog', { name: 'تغییرات ذخیره نشده' }).waitFor();
+  await page.getByRole('button', { name: 'انصراف', exact: true }).last().click();
+  ok(page.url().endsWith('/sales/new'), 'unsaved navigation can be cancelled');
+  await selectValue(page, page.getByLabel('انتخاب شرکت', { exact: true }), 'c2');
+  await page.getByRole('dialog', { name: 'تغییرات ذخیره نشده' }).waitFor();
+  await page.getByRole('button', { name: 'انصراف', exact: true }).last().click();
+  ok(
+    (await page
+      .getByLabel('انتخاب شرکت', { exact: true })
+      .locator('..')
+      .getAttribute('data-value')) === 'c1',
+    'company switch protects unsaved work',
+  );
+  await selectValue(page, page.getByLabel('طرف حساب', { exact: true }), 'c1-person-1');
+  await selectValue(page, page.getByLabel('انبار', { exact: true }), 'c1-warehouse-1');
+  await selectValue(page, page.getByLabel('کالا ردیف 1'), 'c1-product-2');
   await page.getByLabel('تعداد ردیف 1').fill('2');
   await page.getByLabel('تاریخ', { exact: true }).click();
+  await selectValue(page, page.getByLabel('سال تقویم', { exact: true }), '1405', '۱۴۰۵');
+  ok(
+    await page.locator('.calendar-popover').isVisible(),
+    'calendar remains open after portalled year selection',
+  );
   await page.getByRole('button', { name: 'امروز', exact: true }).click();
   await page.getByRole('button', { name: 'ذخیره فاکتور فروش', exact: true }).click();
   await page.locator('.document-panel').waitFor();
@@ -316,13 +391,16 @@ try {
     'UI invoice line editor saves',
   );
   await page.goto(`${base}/dashboard`, { waitUntil: 'networkidle' });
-  await page.getByLabel('انتخاب شرکت').selectOption('c2');
+  await selectValue(page, page.getByLabel('انتخاب شرکت'), 'c2');
   await page.getByText('نبض مالی کسب‌وکار').waitFor();
   ok(
-    (await page.getByLabel('سال مالی').inputValue()).startsWith('c2-'),
+    (
+      await page.getByLabel('سال مالی', { exact: true }).locator('..').getAttribute('data-value')
+    ).startsWith('c2-'),
     'company switch resets fiscal year',
   );
   for (const viewport of [
+    { width: 360, height: 800 },
     { width: 390, height: 844 },
     { width: 768, height: 1024 },
   ]) {
@@ -344,7 +422,60 @@ try {
       );
     }
   }
+  await page.goto(`${base}/people/does-not-exist/edit`, { waitUntil: 'networkidle' });
+  ok(
+    await page.getByText('بارگذاری اطلاعات انجام نشد').isVisible(),
+    'missing edit record shows recovery state',
+  );
+  await page.goto(`${base}/sales/new`, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'ذخیره فاکتور فروش', exact: true }).click();
+  ok(
+    (await page.locator('.select-invalid').count()) > 0,
+    'required custom selects participate in form validation',
+  );
+  ok(
+    await page.locator('.select-search input').evaluate((el) => el === document.activeElement),
+    'first invalid select opens and receives focus',
+  );
+  await page.locator('.select-search input').press('Escape');
+  await selectValue(page, page.getByLabel('سال مالی', { exact: true }), 'c2-year-1404');
+  await page.getByText('سال مالی بسته است', { exact: true }).waitFor();
+  ok(
+    (await page.locator('form.entity-form').count()) === 0,
+    'closed year explains why editing is unavailable',
+  );
+  await page.goto(`${base}/settings`, { waitUntil: 'networkidle' });
+  await selectValue(
+    page,
+    page.getByRole('combobox', { name: 'نمایش اعداد', exact: true }),
+    'لاتین',
+  );
+  await page.getByRole('button', { name: 'ذخیره تغییرات', exact: true }).click();
+  await page.getByText('تنظیمات شرکت ذخیره شد.', { exact: true }).waitFor();
+  await page.reload({ waitUntil: 'networkidle' });
+  ok(
+    (await page
+      .getByRole('combobox', { name: 'نمایش اعداد', exact: true })
+      .locator('..')
+      .getAttribute('data-value')) === 'لاتین',
+    'search select settings persist after reload',
+  );
   ok(errors.length === 0, `no browser runtime errors: ${errors.join('; ')}`);
+  await fs.writeFile(
+    'artifacts/review/test-result.json',
+    JSON.stringify(
+      {
+        passed: true,
+        assertions,
+        modules: keys.length,
+        reports: reportKeys.length,
+        isolatedData: `.data-test/${testId}`,
+        testedAt: new Date().toISOString(),
+      },
+      null,
+      2,
+    ),
+  );
   console.log(`PASS: ${assertions} assertions. Data isolated in .data-test/${testId}.`);
 } catch (e) {
   console.error(e);

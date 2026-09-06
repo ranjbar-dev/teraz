@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { SearchSelect } from './search-select';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import {
   Search,
@@ -11,11 +12,11 @@ import {
   ArrowUp,
   ArrowDown,
   X,
-  FileSpreadsheet,
   Inbox,
 } from 'lucide-react';
 import { useApp } from './provider';
 import { Badge } from './ui';
+import { normalizeSearch } from '@/lib/search';
 export type TableRow = { id: string; [key: string]: unknown };
 export type Column = {
   key: string;
@@ -25,14 +26,7 @@ export type Column = {
   render?: (row: TableRow) => React.ReactNode;
   text?: (row: TableRow) => string;
 };
-export const normalize = (s: unknown) =>
-  String(s ?? '')
-    .replace(/[۰-۹]/g, (c) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(c)))
-    .replace(/[٠-٩]/g, (c) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(c)))
-    .replace(/ي/g, 'ی')
-    .replace(/ك/g, 'ک')
-    .replace(/[,٬\u200c]/g, '')
-    .toLowerCase();
+export const normalize = normalizeSearch;
 export function DataTable({
   rows,
   columns,
@@ -63,6 +57,31 @@ export function DataTable({
   const [selected, setSelected] = useState<string[]>([]);
   const [exporting, setExporting] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const columnMenu = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    setSelected((current) => {
+      const next = current.filter((id) => rows.some((row) => row.id === id));
+      return next.length === current.length ? current : next;
+    });
+  }, [rows]);
+  useEffect(() => {
+    if (!showColumns) return;
+    const outside = (event: PointerEvent) => {
+      if (!columnMenu.current?.contains(event.target as Node)) setShowColumns(false);
+    };
+    const key = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowColumns(false);
+        columnMenu.current?.querySelector('button')?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('keydown', key);
+    return () => {
+      document.removeEventListener('pointerdown', outside);
+      document.removeEventListener('keydown', key);
+    };
+  }, [showColumns]);
   useEffect(() => {
     const before = () => flushSync(() => setPrinting(true));
     const after = () => setPrinting(false);
@@ -113,6 +132,7 @@ export function DataTable({
   );
   useEffect(() => {
     setPage(1);
+    setSelected([]);
   }, [query, filters, pageSize]);
   const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, pages);
@@ -182,9 +202,10 @@ export function DataTable({
               <X size={14} /> حذف فیلترها
             </button>
           )}
-          <div className="popover-anchor">
+          <div className="popover-anchor" ref={columnMenu}>
             <button
               className={`btn btn-small ${showColumns ? 'button-selected' : ''}`}
+              aria-expanded={showColumns}
               onClick={() => setShowColumns(!showColumns)}
             >
               <SlidersHorizontal size={15} />
@@ -233,6 +254,24 @@ export function DataTable({
           </button>
         </div>
       </div>
+      {Object.entries(filters).some(([, value]) => value) && (
+        <div className="active-filter-list" aria-label="فیلترهای فعال">
+          {Object.entries(filters)
+            .filter(([, value]) => value)
+            .map(([key, value]) => (
+              <button
+                key={key}
+                onClick={() => setFilters((current) => ({ ...current, [key]: '' }))}
+                aria-label={`حذف فیلتر ${columns.find((c) => c.key === key)?.label}`}
+              >
+                <span>
+                  {columns.find((c) => c.key === key)?.label}: {value}
+                </span>
+                <X size={12} />
+              </button>
+            ))}
+        </div>
+      )}
       <div className="table-scroll">
         <table>
           <thead>
@@ -252,7 +291,16 @@ export function DataTable({
                 />
               </th>
               {cols.map((c) => (
-                <th key={c.key}>
+                <th
+                  key={c.key}
+                  aria-sort={
+                    sort.key === c.key
+                      ? sort.direction === 1
+                        ? 'ascending'
+                        : 'descending'
+                      : 'none'
+                  }
+                >
                   <button
                     className="sort-button"
                     onClick={() =>
@@ -316,7 +364,11 @@ export function DataTable({
                     key={c.key}
                     className={`${c.type === 'money' ? 'money-cell' : ''} ${i === 0 ? 'first-cell' : ''}`}
                   >
-                    {c.render ? (
+                    {i === 0 && onView ? (
+                      <button className="first-cell-link" onClick={() => onView(r)}>
+                        {c.render ? c.render(r) : display(r, c) || 'مشاهده جزئیات'}
+                      </button>
+                    ) : c.render ? (
                       c.render(r)
                     ) : c.key === 'status' ? (
                       <Badge value={r[c.key]} />
@@ -399,7 +451,7 @@ export function DataTable({
           )}
         </span>
         <div className="pagination">
-          <select
+          <SearchSelect
             aria-label="تعداد ردیف در صفحه"
             value={pageSize}
             onChange={(e) => setPageSize(Number(e.target.value))}
@@ -409,7 +461,7 @@ export function DataTable({
                 {fmt(n)} ردیف
               </option>
             ))}
-          </select>
+          </SearchSelect>
           <button
             aria-label="صفحه قبل"
             disabled={safePage === 1}
