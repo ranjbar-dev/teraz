@@ -99,7 +99,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       try {
         res = await fetch(`/api/${path}${path.includes('?') ? '&' : '?'}${params}`, {
           ...options,
-          headers: { 'Content-Type': 'application/json', ...options?.headers },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(options?.method === 'POST' ? { 'Idempotency-Key': crypto.randomUUID() } : {}),
+            ...options?.headers,
+          },
           cache: 'no-store',
         });
       } catch {
@@ -110,6 +114,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
       if (!res.ok) {
         if (res.status === 401) router.replace('/login');
+        if (data.code === 'PLATFORM_REDIRECT') router.replace('/platform');
         throw new Error(data.error || 'ارتباط با سرور برقرار نشد.');
       }
       return data;
@@ -122,6 +127,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const data = await api<Boot>('bootstrap');
       if (sequence !== requestSequence.current) return;
       setBoot(data);
+      localStorage.setItem('taraz-resolved-scope', JSON.stringify(data.scope));
       setError('');
     } catch (e) {
       if (sequence === requestSequence.current) setError((e as Error).message);
@@ -155,7 +161,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     new Intl.NumberFormat(boot?.settings.digits === 'لاتین' ? 'en-US' : 'fa-IR', {
       maximumFractionDigits: 2,
       ...(compact ? { notation: 'compact' as const } : {}),
-    }).format(Number(value) || 0);
+    }).format(
+      (typeof value === 'string' && /^-?\d+(\.\d+)?$/.test(value)
+        ? value
+        : Number(value) || 0) as number,
+    );
   const date = (value: unknown) => {
     if (!value) return '—';
     const d = new Date(String(value).slice(0, 10) + 'T12:00:00');

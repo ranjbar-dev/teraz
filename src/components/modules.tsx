@@ -1,4 +1,5 @@
 'use client';
+import { Attachments } from './workspace-services';
 import { SearchSelect } from './search-select';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -25,7 +26,7 @@ import { active, invoiceTotals, number } from '@/lib/domain';
 import type { Module, Row, Line, Field } from '@/lib/types';
 
 export function useRows(key: string) {
-  const { api } = useApp();
+  const { api, currency } = useApp();
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState('');
   const refresh = async () => {
@@ -56,7 +57,7 @@ export function useRows(key: string) {
 }
 export function ModuleList({ mod }: { mod: Module }) {
   const { rows, error, refresh } = useRows(mod.key);
-  const { boot, fmt, canWrite } = useApp();
+  const { boot, fmt, canWrite, currency } = useApp();
   const router = useRouter();
   const [status, setStatus] = useState('all');
   if (error)
@@ -233,7 +234,7 @@ export function ModuleList({ mod }: { mod: Module }) {
                 · همه وضعیت‌ها
               </small>
               <strong>
-                {fmt(sum)} <em>تومان</em>
+                {fmt(sum)} <em>{currency}</em>
               </strong>
             </span>
           </div>
@@ -298,7 +299,7 @@ function FieldInput({
   onChange: (v: string | number) => void;
   values: Partial<Row>;
 }) {
-  const { boot } = useApp();
+  const { boot, currency } = useApp();
   const options = field.ref
     ? boot?.lookups[field.ref]?.filter(
         (r) =>
@@ -373,19 +374,20 @@ function FieldInput({
         }}
       />
       {field.type === 'money' && (
-        <span className="input-unit">{String(values.currency || 'تومان')}</span>
+        <span className="input-unit">{String(values.currency || currency)}</span>
       )}
     </div>
   );
 }
 export function EntityEditor({ mod, id }: { mod: Module; id?: string }) {
-  const { api, boot, notify, reload, fmt, canWrite, setUnsaved } = useApp();
+  const { api, boot, notify, reload, fmt, canWrite, setUnsaved, currency } = useApp();
   const router = useRouter();
   const [values, setValues] = useState<Partial<Row>>({});
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [dirty, setDirty] = useState(false);
+  const [payrollPreview, setPayrollPreview] = useState<Record<string, unknown> | null>(null);
   const [loadError, setLoadError] = useState('');
   useEffect(() => {
     if (!boot) return;
@@ -420,7 +422,7 @@ export function EntityEditor({ mod, id }: { mod: Module; id?: string }) {
                   : f.key === 'dueDate'
                     ? due.toISOString().slice(0, 10)
                     : f.key === 'currency'
-                      ? boot.settings.currency || 'تومان'
+                      ? boot.settings.currency || currency
                       : (f.default ?? ''),
             ]),
           );
@@ -543,11 +545,11 @@ export function EntityEditor({ mod, id }: { mod: Module; id?: string }) {
         <Link href={`/${mod.key}`}>بازگشت به فهرست</Link>
       </div>
     );
-  if (id && active(values as Row))
+  if (id && values.postedAt)
     return (
       <div className="empty-state">
         <h2>این سند تأیید شده است.</h2>
-        <p>ابتدا از صفحهٔ جزئیات آن را به پیش‌نویس برگردانید.</p>
+        <p>برای اصلاح، از صفحهٔ جزئیات سند برگشتی بسازید.</p>
         <Link className="btn" href={`/${mod.key}/${id}`}>
           جزئیات سند
         </Link>
@@ -568,6 +570,49 @@ export function EntityEditor({ mod, id }: { mod: Module; id?: string }) {
           {dirty ? 'تغییرات ذخیره نشده' : 'آمادهٔ ثبت'}
         </span>
       </PageHeading>
+      {mod.key === 'payroll' && (
+        <section className="panel form-panel">
+          <h2>محاسبهٔ حقوق در سرور</h2>
+          <p>بیمه و مالیات از نسخهٔ قواعد معتبر برای تاریخ فیش محاسبه می‌شوند.</p>
+          <button
+            className="btn"
+            type="button"
+            onClick={async () => {
+              try {
+                setPayrollPreview(
+                  await api<Record<string, unknown>>('payroll-calculate', {
+                    method: 'POST',
+                    body: JSON.stringify(values),
+                  }),
+                );
+              } catch (e) {
+                setError((e as Error).message);
+              }
+            }}
+          >
+            محاسبه و پیش‌نمایش
+          </button>
+          <Link className="text-button" href="/payroll-rules">
+            قواعد حقوق
+          </Link>
+          {payrollPreview && (
+            <div className="report-summary">
+              {[
+                ['gross', 'ناخالص'],
+                ['insurance', 'بیمه کارمند'],
+                ['employerInsurance', 'بیمه کارفرما'],
+                ['tax', 'مالیات'],
+                ['total', 'خالص'],
+              ].map(([key, label]) => (
+                <div key={key}>
+                  <small>{label}</small>
+                  <strong>{fmt(payrollPreview[key])}</strong>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
       <form onSubmit={save} className="entity-form">
         {error && (
           <div className="form-error" role="alert">
@@ -747,12 +792,12 @@ export function EntityEditor({ mod, id }: { mod: Module; id?: string }) {
                     <span>مبلغ نهایی</span>
                     <strong>
                       {fmt(total.total)}
-                      <small>{String(values.currency || 'تومان')}</small>
+                      <small>{String(values.currency || currency)}</small>
                     </strong>
                   </div>
-                  {values.currency && values.currency !== 'تومان' && (
+                  {values.currency && values.currency !== currency && (
                     <div>
-                      <span>معادل تومان</span>
+                      <span>معادل {currency}</span>
                       <strong>{fmt(total.total * number(values.exchangeRate))}</strong>
                     </div>
                   )}
@@ -772,7 +817,7 @@ export function EntityEditor({ mod, id }: { mod: Module; id?: string }) {
                       number(values.insurance) -
                       number(values.deductions),
                   )}
-                  <small>تومان</small>
+                  <small>{currency}</small>
                 </strong>
               </div>
             </section>
@@ -814,7 +859,7 @@ function newLine(): Line {
   };
 }
 function DocumentLines({ mod, row }: { mod: Module; row: Row }) {
-  const { boot } = useApp();
+  const { boot, currency } = useApp();
   const journal = mod.kind === 'journal';
   const columns: Column[] = [
     { key: 'index', label: 'ردیف' },
@@ -836,13 +881,16 @@ function DocumentLines({ mod, row }: { mod: Module; row: Row }) {
   const rows = ((row.lines || []) as Line[]).map((l, i) => ({
     ...l,
     index: i + 1,
-    currency: row.currency || 'تومان',
+    currency: row.currency || currency,
     reference: String(
-      boot?.lookups[journal ? 'accounts' : 'products']?.find(
-        (p) => p.id === (journal ? l.accountId : l.productId),
-      )?.name || '',
+      (l as unknown as Record<string, unknown>).productName ||
+        boot?.lookups[journal ? 'accounts' : 'products']?.find(
+          (p) => p.id === (journal ? l.accountId : l.productId),
+        )?.name ||
+        '',
     ),
-    total: invoiceTotals({ lines: [l] }).total,
+    total:
+      (l as unknown as Record<string, unknown>).lineTotal ?? invoiceTotals({ lines: [l] }).total,
   }));
   return (
     <div className="document-lines">
@@ -864,7 +912,7 @@ function LineEditor({
   lines: Line[];
   onChange: (l: Line[]) => void;
 }) {
-  const { boot, fmt } = useApp();
+  const { boot, fmt, currency } = useApp();
   const journal = mod.kind === 'journal';
   const [filters, setFilters] = useState<Record<string, string>>({});
   useEffect(() => {
@@ -1018,11 +1066,13 @@ function LineEditor({
 }
 
 export function EntityDetail({ mod, id }: { mod: Module; id: string }) {
-  const { api, boot, fmt, date, notify, reload, canWrite } = useApp();
+  const { api, boot, fmt, date, notify, reload, canWrite, currency } = useApp();
   const router = useRouter();
   const [row, setRow] = useState<Row | null>(null);
   const [error, setError] = useState('');
   const [confirm, setConfirm] = useState<string | null>(null);
+  const [reverseReason, setReverseReason] = useState('');
+  const [reverseDate, setReverseDate] = useState(new Date().toISOString().slice(0, 10));
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     let cancel = false;
@@ -1046,15 +1096,25 @@ export function EntityDetail({ mod, id }: { mod: Module; id: string }) {
         await reload();
         router.push(`/${mod.key}`);
       } else if (action === 'convert') {
-        const copy = { ...row, code: `AV-${String(Date.now()).slice(-6)}`, status: 'پیش‌نویس' };
-        const created = await api<Row>('sales', { method: 'POST', body: JSON.stringify(copy) });
+        const created = await api<Row>(`${mod.key}/${id}/convert`, {
+          method: 'POST',
+          body: JSON.stringify({ version: row?.version }),
+        });
         notify('فاکتور فروش از پیش‌فاکتور ایجاد شد.');
         await reload();
         router.push(`/sales/${created.id}`);
+      } else if (action === 'reverse') {
+        const result = await api<Row>(`${mod.key}/${id}/reverse`, {
+          method: 'POST',
+          body: JSON.stringify({ version: row?.version, reason: reverseReason, date: reverseDate }),
+        });
+        setRow(result);
+        await reload();
+        notify('سند برگشتی ثبت شد.');
       } else {
         const result = await api<Row>(`${mod.key}/${id}`, {
           method: 'PATCH',
-          body: JSON.stringify({ status: action }),
+          body: JSON.stringify({ status: action, version: row?.version }),
         });
         setRow(result);
         notify('وضعیت با موفقیت تغییر کرد.');
@@ -1077,9 +1137,12 @@ export function EntityDetail({ mod, id }: { mod: Module; id: string }) {
       </div>
     );
   if (!row) return <Loading />;
-  const company = boot?.companies.find((c) => c.id === row.companyId);
-  const person = boot?.lookups.people?.find((p) => p.id === row.personId);
-  const total = invoiceTotals(row);
+  const company =
+    (row.companySnapshot as unknown as Row) || boot?.companies.find((c) => c.id === row.companyId);
+  const person =
+    (row.partySnapshot as unknown as Row) ||
+    boot?.lookups.people?.find((p) => p.id === row.personId);
+  const total = (row.totals as unknown as ReturnType<typeof invoiceTotals>) || invoiceTotals(row);
   const isInvoice = mod.kind === 'invoice';
   const transactions = ['sales', 'purchases'].includes(mod.key)
     ? boot?.lookups[mod.key === 'sales' ? 'receipts' : 'payments']?.filter(
@@ -1098,7 +1161,7 @@ export function EntityDetail({ mod, id }: { mod: Module; id: string }) {
           <button className="btn" onClick={() => window.print()}>
             <Printer size={17} /> چاپ / PDF
           </button>
-          {canWrite && !active(row) && (
+          {canWrite && !row.postedAt && (
             <Link className="btn" href={`/${mod.key}/${id}/edit`}>
               <Pencil size={16} /> ویرایش
             </Link>
@@ -1114,13 +1177,13 @@ export function EntityDetail({ mod, id }: { mod: Module; id: string }) {
             <Badge value={row.status} />
             <span className="muted">
               {mod.kind === 'journal'
-                ? 'مبنای ثبت: تومان'
+                ? `مبنای ثبت: ${currency}`
                 : String(row.currency || 'اطلاعات ثبت‌شده')}
             </span>
           </div>
           {canWrite && (
             <div>
-              {mod.status && (
+              {mod.status && !row.postedAt && (
                 <label className="status-picker">
                   <span>تغییر وضعیت</span>
                   <SearchSelect
@@ -1139,13 +1202,36 @@ export function EntityDetail({ mod, id }: { mod: Module; id: string }) {
                   </SearchSelect>
                 </label>
               )}
-              <button
-                className="icon-button danger-text"
-                aria-label="حذف رکورد"
-                onClick={() => setConfirm('delete')}
-              >
-                <Trash2 size={18} />
-              </button>
+              {!row.postedAt && (
+                <button
+                  className="icon-button danger-text"
+                  aria-label="حذف رکورد"
+                  onClick={() => setConfirm('delete')}
+                >
+                  <Trash2 size={18} />
+                </button>
+              )}
+              {row.postedAt && !row.reversedAt && (
+                <button className="btn" disabled={busy} onClick={() => setConfirm('reverse')}>
+                  ثبت سند برگشتی
+                </button>
+              )}
+              {mod.key === 'checks' &&
+                row.postedAt &&
+                !row.reversedAt &&
+                row.status === 'در جریان' && (
+                  <button className="btn btn-primary" onClick={() => setConfirm('وصول شده')}>
+                    ثبت وصول چک
+                  </button>
+                )}
+              {mod.key === 'payroll' &&
+                row.postedAt &&
+                !row.reversedAt &&
+                row.status !== 'پرداخت شده' && (
+                  <button className="btn btn-primary" onClick={() => setConfirm('پرداخت شده')}>
+                    ثبت پرداخت حقوق
+                  </button>
+                )}
             </div>
           )}
         </div>
@@ -1157,10 +1243,10 @@ export function EntityDetail({ mod, id }: { mod: Module; id: string }) {
               تراز<span>.</span>
             </span>
             <h2>{String(company?.name || '')}</h2>
-            <p>{String(boot?.settings.address || company?.address || '')}</p>
+            <p>{String(company?.address || boot?.settings.address || '')}</p>
             <small>
               شناسه ملی: {String(company?.nationalId || '—')} · تلفن:{' '}
-              {String(boot?.settings.phone || company?.phone || '—')}
+              {String(company?.phone || boot?.settings.phone || '—')}
             </small>
           </div>
           <div className="document-number">
@@ -1205,7 +1291,7 @@ export function EntityDetail({ mod, id }: { mod: Module; id: string }) {
                       ? date(row[f.key])
                       : ['money', 'number'].includes(f.type || '')
                         ? fmt(row[f.key]) +
-                          (f.type === 'money' ? ` ${String(row.currency || 'تومان')}` : '')
+                          (f.type === 'money' ? ` ${String(row.currency || currency)}` : '')
                         : String(row[f.key] || '—')}
                 </strong>
               </div>
@@ -1239,7 +1325,7 @@ export function EntityDetail({ mod, id }: { mod: Module; id: string }) {
                 <span>مبلغ نهایی</span>
                 <strong>
                   {fmt(total.total)}
-                  <small>{String(row.currency || 'تومان')}</small>
+                  <small>{String(row.currency || currency)}</small>
                 </strong>
               </div>
               {row.remaining !== undefined && (
@@ -1266,7 +1352,7 @@ export function EntityDetail({ mod, id }: { mod: Module; id: string }) {
                 </span>
                 <strong>
                   {fmt(row.total ?? row.bookValue ?? row.balance ?? row.amount ?? 0)}
-                  <small>{String(row.currency || 'تومان')}</small>
+                  <small>{String(row.currency || currency)}</small>
                 </strong>
               </div>
             </div>
@@ -1301,7 +1387,41 @@ export function EntityDetail({ mod, id }: { mod: Module; id: string }) {
           />
         </section>
       )}
-      {confirm && (
+      {!['companies', 'users'].includes(mod.key) && (
+        <Attachments recordId={row.id} posted={!!row.postedAt} />
+      )}
+      {confirm === 'reverse' && (
+        <section className="panel form-panel no-print">
+          <h2>ثبت سند برگشتی</h2>
+          <p>سند اولیه حفظ می‌شود و یک ثبت معکوس با تاریخ و دلیل شما ایجاد می‌شود.</p>
+          <label className="field">
+            <span>دلیل برگشت</span>
+            <textarea
+              aria-label="دلیل برگشت"
+              className="input"
+              value={reverseReason}
+              onChange={(e) => setReverseReason(e.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>تاریخ برگشت</span>
+            <DatePicker label="تاریخ برگشت" value={reverseDate} onChange={setReverseDate} />
+          </label>
+          <div className="saas-form-actions">
+            <button className="btn" onClick={() => setConfirm(null)}>
+              انصراف
+            </button>
+            <button
+              className="btn btn-primary"
+              disabled={busy || reverseReason.trim().length < 3}
+              onClick={() => perform('reverse')}
+            >
+              ثبت برگشت
+            </button>
+          </div>
+        </section>
+      )}
+      {confirm && confirm !== 'reverse' && (
         <Confirm
           title={confirm === 'delete' ? `حذف ${mod.singular}` : 'تغییر وضعیت'}
           description={

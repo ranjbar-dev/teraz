@@ -67,6 +67,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <p>در حال آماده‌سازی فضای کاری شما…</p>
       </div>
     );
+  if (!boot && currentKey === 'subscription')
+    return <main className="platform-main">{children}</main>;
   if (!boot)
     return (
       <div className="loading-screen">
@@ -76,6 +78,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           تلاش دوباره
         </button>
         <Link href="/login">صفحه ورود</Link>
+        <Link href="/subscription">مدیریت اشتراک</Link>
       </div>
     );
   const groups = [
@@ -134,6 +137,27 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <span>داشبورد</span>
             {currentKey === 'dashboard' && <span className="nav-active-dot" />}
           </Link>
+          <div className="nav-section-label">حساب سازمان</div>
+          {[
+            { key: 'profile', title: 'حساب و سازمان‌ها', icon: 'users' },
+            ...(boot.user.role === 'مدیر'
+              ? [
+                  { key: 'subscription', title: 'اشتراک سازمان', icon: 'shield' },
+                  { key: 'integrations', title: 'اتصال‌های بیرونی', icon: 'arrows' },
+                  { key: 'payroll-rules', title: 'قواعد حقوق', icon: 'receipt' },
+                  { key: 'period-close', title: 'پایان سال مالی', icon: 'calendar' },
+                ]
+              : []),
+          ].map((item) => (
+            <Link
+              key={item.key}
+              href={'/' + item.key}
+              className={'nav-item ' + (currentKey === item.key ? 'active' : '')}
+            >
+              <Icon name={item.icon} size={18} />
+              <span>{item.title}</span>
+            </Link>
+          ))}
           <div className="nav-section-label">مدیریت کسب‌وکار</div>
           {groups
             .filter((g) => g !== 'مدیریت')

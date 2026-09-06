@@ -8,3 +8,8 @@ playwright-report/
 *.tsbuildinfo
 *.log
 .env*
+!.env.example
+.runtime/
+backend/dist/
+backend/generated/
+backend/uploads/

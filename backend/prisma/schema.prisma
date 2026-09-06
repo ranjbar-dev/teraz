@@ -1,0 +1,352 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id String @id @default(uuid()) @db.Uuid
+  email String @unique
+  name String
+  passwordHash String
+  globalRole String @default("USER")
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  memberships Membership[]
+  sessions Session[]
+  resets PasswordReset[]
+}
+model Organization {
+  id String @id @default(uuid()) @db.Uuid
+  slug String @unique
+  name String
+  status String @default("ACTIVE")
+  createdAt DateTime @default(now())
+  memberships Membership[]
+  companies Company[]
+  subscription Subscription?
+  payments BillingPayment[]
+}
+model Membership {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid
+  userId String @db.Uuid
+  role String @default("VIEWER")
+  companyIds Json @default("[]")
+  permissions Json @default("[]")
+  active Boolean @default(true)
+  organization Organization @relation(fields:[organizationId], references:[id])
+  user User @relation(fields:[userId], references:[id])
+  @@unique([organizationId,userId])
+}
+model Session {
+  id String @id @default(uuid()) @db.Uuid
+  tokenHash String @unique
+  userId String @db.Uuid
+  organizationId String? @db.Uuid
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  @@index([expiresAt])
+}
+model PasswordReset {
+  id String @id @default(uuid()) @db.Uuid
+  tokenHash String @unique
+  userId String @db.Uuid
+  expiresAt DateTime
+  usedAt DateTime?
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+}
+model Plan {
+  id String @id @default(uuid()) @db.Uuid
+  name String
+  price Decimal @db.Decimal(24,0)
+  durationDays Int @default(30)
+  companyLimit Int @default(5)
+  userLimit Int @default(20)
+  documentLimit Int @default(10000)
+  active Boolean @default(true)
+  subscriptions Subscription[]
+  payments BillingPayment[]
+}
+model Subscription {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @unique @db.Uuid
+  planId String @db.Uuid
+  status String @default("TRIAL")
+  startsAt DateTime @default(now())
+  endsAt DateTime
+  organization Organization @relation(fields:[organizationId],references:[id])
+  plan Plan @relation(fields:[planId],references:[id])
+}
+model BillingPayment {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid
+  planId String @db.Uuid
+  amount Decimal @db.Decimal(24,0)
+  durationDays Int
+  authority String? @unique
+  reference String? @unique
+  status String @default("PENDING")
+  mode String @default("sandbox")
+  createdAt DateTime @default(now())
+  verifiedAt DateTime?
+  organization Organization @relation(fields:[organizationId],references:[id])
+  plan Plan @relation(fields:[planId],references:[id])
+}
+model Company {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid
+  code String
+  name String
+  baseCurrency String @default("IRR")
+  status String @default("فعال")
+  data Json @default("{}")
+  settings Json @default("{}")
+  createdAt DateTime @default(now())
+  organization Organization @relation(fields:[organizationId],references:[id])
+  records Record[]
+  journals Journal[]
+  balances InventoryBalance[]
+  movements StockMovement[]
+  allocations Allocation[]
+  rules PayrollRule[]
+  integrations IntegrationConfig[]
+  jobs IntegrationJob[]
+  files Attachment[]
+  @@unique([organizationId,code])
+  @@unique([id,organizationId])
+}
+model Record {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid
+  companyId String @db.Uuid
+  module String
+  code String
+  name String @default("")
+  status String
+  date DateTime? @db.Date
+  branchId String?
+  yearId String?
+  data Json @default("{}")
+  total Decimal @default(0) @db.Decimal(24,6)
+  version Int @default(1)
+  postedAt DateTime?
+  reversedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  company Company @relation(fields:[companyId,organizationId],references:[id,organizationId])
+  lines RecordLine[]
+  outgoing RecordReference[] @relation("referenceSource")
+  incoming RecordReference[] @relation("referenceTarget")
+  @@unique([companyId,module,code])
+  @@unique([id,companyId])
+  @@index([organizationId,companyId,module,date,id])
+  @@index([companyId,yearId,branchId,module])
+}
+model RecordLine {
+  id String @id @default(uuid()) @db.Uuid
+  recordId String @db.Uuid
+  position Int
+  productId String?
+  accountId String?
+  title String
+  quantity Decimal @default(0) @db.Decimal(24,6)
+  price Decimal @default(0) @db.Decimal(24,6)
+  discount Decimal @default(0) @db.Decimal(12,6)
+  tax Decimal @default(0) @db.Decimal(12,6)
+  debit Decimal @default(0) @db.Decimal(24,6)
+  credit Decimal @default(0) @db.Decimal(24,6)
+  cost Decimal @default(0) @db.Decimal(24,6)
+  data Json @default("{}")
+  record Record @relation(fields:[recordId],references:[id],onDelete:Cascade)
+  @@unique([recordId,position])
+}
+model RecordReference {
+  id String @id @default(uuid()) @db.Uuid
+  companyId String @db.Uuid
+  sourceId String @db.Uuid
+  targetId String @db.Uuid
+  field String
+  source Record @relation("referenceSource",fields:[sourceId,companyId],references:[id,companyId],onDelete:Cascade)
+  target Record @relation("referenceTarget",fields:[targetId,companyId],references:[id,companyId],onDelete:Restrict)
+  @@unique([sourceId,field,targetId])
+}
+model Journal {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid
+  companyId String @db.Uuid
+  sourceId String
+  sourceModule String
+  sourceKey String
+  number Int
+  branchId String
+  yearId String
+  date DateTime @db.Date
+  description String
+  sealed Boolean @default(false)
+  reversalOfId String? @unique
+  createdBy String
+  createdAt DateTime @default(now())
+  company Company @relation(fields:[companyId,organizationId],references:[id,organizationId])
+  lines JournalLine[]
+  @@unique([companyId,sourceKey])
+  @@unique([companyId,number])
+  @@index([companyId,yearId,branchId,date])
+}
+model JournalLine {
+  id String @id @default(uuid()) @db.Uuid
+  journalId String @db.Uuid
+  accountId String
+  accountCode String
+  accountName String
+  accountType String
+  personId String?
+  projectId String?
+  bankId String?
+  description String
+  debit Decimal @db.Decimal(24,6)
+  credit Decimal @db.Decimal(24,6)
+  currency String
+  foreignAmount Decimal @default(0) @db.Decimal(24,6)
+  exchangeRate Decimal @default(1) @db.Decimal(24,10)
+  journal Journal @relation(fields:[journalId],references:[id])
+  @@index([accountId,journalId])
+}
+model InventoryBalance {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid
+  companyId String @db.Uuid
+  warehouseId String
+  productId String
+  quantity Decimal @default(0) @db.Decimal(24,6)
+  value Decimal @default(0) @db.Decimal(24,6)
+  lastDate DateTime? @db.Date
+  company Company @relation(fields:[companyId,organizationId],references:[id,organizationId])
+  @@unique([companyId,warehouseId,productId])
+}
+model StockMovement {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid
+  companyId String @db.Uuid
+  sourceId String
+  sourceModule String
+  warehouseId String
+  productId String
+  branchId String
+  yearId String
+  date DateTime @db.Date
+  quantity Decimal @db.Decimal(24,6)
+  value Decimal @db.Decimal(24,6)
+  reversalOfId String? @unique
+  createdAt DateTime @default(now())
+  company Company @relation(fields:[companyId,organizationId],references:[id,organizationId])
+  @@index([companyId,warehouseId,productId,date])
+  @@index([sourceId])
+}
+model Allocation {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid
+  companyId String @db.Uuid
+  paymentId String
+  invoiceId String
+  amount Decimal @db.Decimal(24,6)
+  active Boolean @default(true)
+  company Company @relation(fields:[companyId,organizationId],references:[id,organizationId])
+  @@unique([paymentId,invoiceId])
+  @@index([invoiceId,active])
+}
+model AuditEvent {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String?
+  companyId String?
+  userId String
+  userName String
+  action String
+  targetId String?
+  message String
+  before Json?
+  after Json?
+  requestId String?
+  createdAt DateTime @default(now())
+  @@index([organizationId,companyId,createdAt])
+}
+model Idempotency {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String
+  key String
+  requestHash String
+  response Json
+  createdAt DateTime @default(now())
+  @@unique([organizationId,key])
+}
+model PayrollRule {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid
+  companyId String @db.Uuid
+  name String
+  from DateTime @db.Date
+  to DateTime @db.Date
+  rules Json
+  source String
+  verified Boolean @default(false)
+  createdAt DateTime @default(now())
+  company Company @relation(fields:[companyId,organizationId],references:[id,organizationId])
+}
+model IntegrationConfig {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid
+  companyId String @db.Uuid
+  provider String
+  mode String @default("sandbox")
+  encryptedConfig String
+  enabled Boolean @default(false)
+  company Company @relation(fields:[companyId,organizationId],references:[id,organizationId])
+  @@unique([companyId,provider])
+}
+model IntegrationJob {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid
+  companyId String @db.Uuid
+  provider String
+  recordId String?
+  status String @default("PENDING")
+  payload Json
+  result Json?
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  lockedAt DateTime?
+  createdAt DateTime @default(now())
+  company Company @relation(fields:[companyId,organizationId],references:[id,organizationId])
+  @@index([status,nextAttemptAt])
+}
+model Attachment {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid
+  companyId String @db.Uuid
+  recordId String
+  name String
+  mime String
+  size Int
+  storageKey String @unique
+  createdAt DateTime @default(now())
+  company Company @relation(fields:[companyId,organizationId],references:[id,organizationId])
+}
+model RateBucket {
+  key String @id
+  count Int @default(1)
+  resetsAt DateTime
+}
+
+model Invitation {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid
+  email String
+  role String
+  tokenHash String @unique
+  expiresAt DateTime
+  acceptedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([organizationId,email])
+}

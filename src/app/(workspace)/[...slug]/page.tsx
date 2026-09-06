@@ -1,3 +1,4 @@
+import { WorkspaceServices } from '@/components/workspace-services';
 import { notFound } from 'next/navigation';
 import { modules, reports } from '@/lib/modules';
 import { Dashboard } from '@/components/dashboard';
@@ -24,6 +25,11 @@ export async function generateMetadata({ params }: Props) {
 export default async function Page({ params }: Props) {
   const { slug } = await params;
   const [key, id, action] = slug;
+  if (
+    ['subscription', 'profile', 'integrations', 'payroll-rules', 'period-close'].includes(key) &&
+    slug.length === 1
+  )
+    return <WorkspaceServices section={key} />;
   if (key === 'dashboard' && slug.length === 1) return <Dashboard />;
   if (key === 'reports' && slug.length <= 2) {
     if (!id) return <ReportsIndex />;

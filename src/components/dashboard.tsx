@@ -23,7 +23,7 @@ import { DataTable, type Column } from './data-table';
 import type { dashboard as makeDashboard } from '@/lib/reports';
 type Data = ReturnType<typeof makeDashboard>;
 export function Dashboard() {
-  const { api, boot, fmt, date, canWrite } = useApp();
+  const { api, boot, fmt, date, canWrite, currency } = useApp();
   const router = useRouter();
   const [data, setData] = useState<Data | null>(null);
   const [months, setMonths] = useState('6');
@@ -162,7 +162,7 @@ export function Dashboard() {
             </div>
             <div className="stat-value">
               {fmt(s.value)}
-              <span>تومان</span>
+              <span>{currency}</span>
             </div>
             <div className="stat-bottom">
               <span>
@@ -203,7 +203,7 @@ export function Dashboard() {
             <span>
               <i style={{ background: '#c4d8cd' }} /> هزینه
             </span>
-            <small>میلیون تومان</small>
+            <small>میلیون {currency}</small>
           </div>
           <div className="cash-chart" dir="ltr">
             <ResponsiveContainer width="100%" height="100%">
@@ -236,7 +236,7 @@ export function Dashboard() {
                         <strong>{label}</strong>
                         {payload.map((p, i) => (
                           <p key={i}>
-                            {p.dataKey === 'income' ? 'درآمد' : 'هزینه'}: {fmt(p.value)} تومان
+                            {p.dataKey === 'income' ? 'درآمد' : 'هزینه'}: {fmt(p.value)} {currency}
                           </p>
                         ))}
                       </div>
@@ -300,13 +300,13 @@ export function Dashboard() {
                       <Cell key={c.name} fill={colors[i]} />
                     ))}
                 </Pie>
-                <Tooltip formatter={(v) => `${fmt(v)} تومان`} />
+                <Tooltip formatter={(v) => `${fmt(v)} ${currency}`} />
               </PieChart>
             </ResponsiveContainer>
             <div className="donut-center">
               <small>مجموع هزینه‌ها</small>
               <strong>{fmt(totalExpenses / 1000000)}</strong>
-              <small>میلیون تومان</small>
+              <small>میلیون {currency}</small>
             </div>
           </div>
           <div className="expense-legend">

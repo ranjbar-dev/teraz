@@ -1,0 +1,1979 @@
+{
+  "modules": [
+    {
+      "key": "people",
+      "title": "اشخاص و طرف حساب‌ها",
+      "singular": "طرف حساب",
+      "group": "اشخاص",
+      "icon": "users",
+      "description": "ارتباطی منظم با مشتریان، تأمین‌کنندگان و همکاران شما",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "name",
+          "label": "نام",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "type",
+          "label": "نوع شخص",
+          "type": "select",
+          "options": ["مشتری", "تأمین‌کننده", "هر دو", "سایر"],
+          "default": "مشتری"
+        },
+        {
+          "key": "phone",
+          "label": "تلفن",
+          "type": "text"
+        },
+        {
+          "key": "email",
+          "label": "ایمیل",
+          "type": "email"
+        },
+        {
+          "key": "nationalId",
+          "label": "شناسه ملی / کد ملی",
+          "type": "text"
+        },
+        {
+          "key": "creditLimit",
+          "label": "سقف اعتبار",
+          "type": "money",
+          "min": 0
+        },
+        {
+          "key": "address",
+          "label": "نشانی",
+          "type": "textarea"
+        },
+        {
+          "key": "notes",
+          "label": "توضیحات",
+          "type": "textarea"
+        },
+        {
+          "key": "economicCode",
+          "label": "شماره اقتصادی",
+          "type": "text"
+        },
+        {
+          "key": "legalType",
+          "label": "ماهیت شخص",
+          "type": "select",
+          "options": ["حقیقی", "حقوقی"],
+          "default": "حقیقی"
+        }
+      ],
+      "status": ["فعال", "غیرفعال"]
+    },
+    {
+      "key": "products",
+      "title": "کالاها و خدمات",
+      "singular": "کالا یا خدمت",
+      "group": "کالا و انبار",
+      "icon": "package",
+      "description": "فهرست یکپارچهٔ محصولات، خدمات و قیمت‌ها",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "name",
+          "label": "نام",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "type",
+          "label": "نوع",
+          "type": "select",
+          "options": ["کالا", "خدمت"],
+          "default": "کالا"
+        },
+        {
+          "key": "category",
+          "label": "گروه",
+          "type": "select",
+          "options": ["تجهیزات اداری", "لوازم دیجیتال", "خدمات", "مواد اولیه", "محصول نهایی"],
+          "default": "تجهیزات اداری"
+        },
+        {
+          "key": "unit",
+          "label": "واحد",
+          "type": "select",
+          "options": ["عدد", "بسته", "کیلوگرم", "متر", "ساعت"],
+          "default": "عدد"
+        },
+        {
+          "key": "price",
+          "label": "قیمت فروش",
+          "type": "money",
+          "required": true,
+          "min": 0
+        },
+        {
+          "key": "cost",
+          "label": "قیمت خرید",
+          "type": "money",
+          "required": true,
+          "min": 0
+        },
+        {
+          "key": "minStock",
+          "label": "حداقل موجودی",
+          "type": "number",
+          "default": 5,
+          "min": 0
+        },
+        {
+          "key": "notes",
+          "label": "توضیحات",
+          "type": "textarea"
+        },
+        {
+          "key": "taxId",
+          "label": "شناسه کالا/خدمت مالیاتی",
+          "type": "text"
+        },
+        {
+          "key": "taxUnit",
+          "label": "کد واحد مالیاتی",
+          "type": "text"
+        }
+      ],
+      "status": ["فعال", "غیرفعال"]
+    },
+    {
+      "key": "warehouses",
+      "title": "انبارها",
+      "singular": "انبار",
+      "group": "کالا و انبار",
+      "icon": "warehouse",
+      "description": "انبارها، محل نگهداری و مسئولان موجودی",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "name",
+          "label": "نام",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "manager",
+          "label": "مسئول انبار",
+          "type": "text"
+        },
+        {
+          "key": "phone",
+          "label": "تلفن",
+          "type": "text"
+        },
+        {
+          "key": "address",
+          "label": "نشانی",
+          "type": "textarea"
+        }
+      ],
+      "status": ["فعال", "غیرفعال"]
+    },
+    {
+      "key": "stock",
+      "title": "گردش موجودی",
+      "singular": "گردش انبار",
+      "group": "کالا و انبار",
+      "icon": "arrows",
+      "description": "رسید، حواله و انتقال کالا بین انبارها",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "date",
+          "label": "تاریخ",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "productId",
+          "label": "کالا",
+          "type": "select",
+          "ref": "products",
+          "required": true
+        },
+        {
+          "key": "warehouseId",
+          "label": "انبار مبدأ",
+          "type": "select",
+          "ref": "warehouses",
+          "required": true
+        },
+        {
+          "key": "type",
+          "label": "نوع گردش",
+          "type": "select",
+          "options": ["رسید", "حواله", "انتقال"],
+          "default": "رسید",
+          "required": true
+        },
+        {
+          "key": "destinationId",
+          "label": "انبار مقصد (انتقال)",
+          "type": "select",
+          "ref": "warehouses"
+        },
+        {
+          "key": "quantity",
+          "label": "تعداد",
+          "type": "number",
+          "required": true,
+          "min": 0.001
+        },
+        {
+          "key": "notes",
+          "label": "توضیحات",
+          "type": "textarea"
+        },
+        {
+          "key": "unitCost",
+          "label": "بهای هر واحد رسید",
+          "type": "money",
+          "default": 0,
+          "min": 0
+        }
+      ],
+      "status": ["پیش‌نویس", "تأیید شده", "لغو شده"]
+    },
+    {
+      "key": "quotes",
+      "title": "پیش‌فاکتورها",
+      "singular": "پیش‌فاکتور",
+      "group": "خرید و فروش",
+      "icon": "receipt",
+      "description": "مدیریت اسناد، ردیف اقلام و وضعیت تسویه",
+      "kind": "invoice",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "personId",
+          "label": "طرف حساب",
+          "type": "select",
+          "ref": "people",
+          "required": true
+        },
+        {
+          "key": "date",
+          "label": "تاریخ",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "dueDate",
+          "label": "سررسید",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "currency",
+          "label": "ارز",
+          "type": "select",
+          "options": ["تومان", "ریال", "دلار", "یورو", "درهم"],
+          "default": "تومان",
+          "required": true
+        },
+        {
+          "key": "exchangeRate",
+          "label": "نرخ تبدیل به ارز مبنا",
+          "type": "number",
+          "default": 1,
+          "required": true,
+          "min": 0.000001
+        },
+        {
+          "key": "warehouseId",
+          "label": "انبار",
+          "type": "select",
+          "ref": "warehouses",
+          "required": true
+        },
+        {
+          "key": "discount",
+          "label": "تخفیف کل",
+          "type": "money",
+          "default": 0,
+          "min": 0
+        },
+        {
+          "key": "notes",
+          "label": "توضیحات",
+          "type": "textarea"
+        }
+      ],
+      "status": ["پیش‌نویس", "تأیید شده", "لغو شده"]
+    },
+    {
+      "key": "sales",
+      "title": "فاکتورهای فروش",
+      "singular": "فاکتور فروش",
+      "group": "خرید و فروش",
+      "icon": "receipt",
+      "description": "مدیریت اسناد، ردیف اقلام و وضعیت تسویه",
+      "kind": "invoice",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "personId",
+          "label": "طرف حساب",
+          "type": "select",
+          "ref": "people",
+          "required": true
+        },
+        {
+          "key": "date",
+          "label": "تاریخ",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "dueDate",
+          "label": "سررسید",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "currency",
+          "label": "ارز",
+          "type": "select",
+          "options": ["تومان", "ریال", "دلار", "یورو", "درهم"],
+          "default": "تومان",
+          "required": true
+        },
+        {
+          "key": "exchangeRate",
+          "label": "نرخ تبدیل به ارز مبنا",
+          "type": "number",
+          "default": 1,
+          "required": true,
+          "min": 0.000001
+        },
+        {
+          "key": "warehouseId",
+          "label": "انبار",
+          "type": "select",
+          "ref": "warehouses",
+          "required": true
+        },
+        {
+          "key": "discount",
+          "label": "تخفیف کل",
+          "type": "money",
+          "default": 0,
+          "min": 0
+        },
+        {
+          "key": "notes",
+          "label": "توضیحات",
+          "type": "textarea"
+        }
+      ],
+      "status": ["پیش‌نویس", "تأیید شده", "لغو شده"]
+    },
+    {
+      "key": "purchases",
+      "title": "فاکتورهای خرید",
+      "singular": "فاکتور خرید",
+      "group": "خرید و فروش",
+      "icon": "receipt",
+      "description": "مدیریت اسناد، ردیف اقلام و وضعیت تسویه",
+      "kind": "invoice",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "personId",
+          "label": "طرف حساب",
+          "type": "select",
+          "ref": "people",
+          "required": true
+        },
+        {
+          "key": "date",
+          "label": "تاریخ",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "dueDate",
+          "label": "سررسید",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "currency",
+          "label": "ارز",
+          "type": "select",
+          "options": ["تومان", "ریال", "دلار", "یورو", "درهم"],
+          "default": "تومان",
+          "required": true
+        },
+        {
+          "key": "exchangeRate",
+          "label": "نرخ تبدیل به ارز مبنا",
+          "type": "number",
+          "default": 1,
+          "required": true,
+          "min": 0.000001
+        },
+        {
+          "key": "warehouseId",
+          "label": "انبار",
+          "type": "select",
+          "ref": "warehouses",
+          "required": true
+        },
+        {
+          "key": "discount",
+          "label": "تخفیف کل",
+          "type": "money",
+          "default": 0,
+          "min": 0
+        },
+        {
+          "key": "notes",
+          "label": "توضیحات",
+          "type": "textarea"
+        }
+      ],
+      "status": ["پیش‌نویس", "تأیید شده", "لغو شده"]
+    },
+    {
+      "key": "sales-returns",
+      "title": "برگشت از فروش",
+      "singular": "برگشت از فروش",
+      "group": "خرید و فروش",
+      "icon": "receipt",
+      "description": "مدیریت اسناد، ردیف اقلام و وضعیت تسویه",
+      "kind": "invoice",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "personId",
+          "label": "طرف حساب",
+          "type": "select",
+          "ref": "people",
+          "required": true
+        },
+        {
+          "key": "date",
+          "label": "تاریخ",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "dueDate",
+          "label": "سررسید",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "currency",
+          "label": "ارز",
+          "type": "select",
+          "options": ["تومان", "ریال", "دلار", "یورو", "درهم"],
+          "default": "تومان",
+          "required": true
+        },
+        {
+          "key": "exchangeRate",
+          "label": "نرخ تبدیل به ارز مبنا",
+          "type": "number",
+          "default": 1,
+          "required": true,
+          "min": 0.000001
+        },
+        {
+          "key": "warehouseId",
+          "label": "انبار",
+          "type": "select",
+          "ref": "warehouses",
+          "required": true
+        },
+        {
+          "key": "discount",
+          "label": "تخفیف کل",
+          "type": "money",
+          "default": 0,
+          "min": 0
+        },
+        {
+          "key": "notes",
+          "label": "توضیحات",
+          "type": "textarea"
+        },
+        {
+          "key": "originalInvoiceId",
+          "label": "فاکتور فروش مرجع",
+          "type": "select",
+          "ref": "sales",
+          "required": true
+        }
+      ],
+      "status": ["پیش‌نویس", "تأیید شده", "لغو شده"]
+    },
+    {
+      "key": "purchase-returns",
+      "title": "برگشت از خرید",
+      "singular": "برگشت از خرید",
+      "group": "خرید و فروش",
+      "icon": "receipt",
+      "description": "مدیریت اسناد، ردیف اقلام و وضعیت تسویه",
+      "kind": "invoice",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "personId",
+          "label": "طرف حساب",
+          "type": "select",
+          "ref": "people",
+          "required": true
+        },
+        {
+          "key": "date",
+          "label": "تاریخ",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "dueDate",
+          "label": "سررسید",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "currency",
+          "label": "ارز",
+          "type": "select",
+          "options": ["تومان", "ریال", "دلار", "یورو", "درهم"],
+          "default": "تومان",
+          "required": true
+        },
+        {
+          "key": "exchangeRate",
+          "label": "نرخ تبدیل به ارز مبنا",
+          "type": "number",
+          "default": 1,
+          "required": true,
+          "min": 0.000001
+        },
+        {
+          "key": "warehouseId",
+          "label": "انبار",
+          "type": "select",
+          "ref": "warehouses",
+          "required": true
+        },
+        {
+          "key": "discount",
+          "label": "تخفیف کل",
+          "type": "money",
+          "default": 0,
+          "min": 0
+        },
+        {
+          "key": "notes",
+          "label": "توضیحات",
+          "type": "textarea"
+        },
+        {
+          "key": "originalInvoiceId",
+          "label": "فاکتور خرید مرجع",
+          "type": "select",
+          "ref": "purchases",
+          "required": true
+        }
+      ],
+      "status": ["پیش‌نویس", "تأیید شده", "لغو شده"]
+    },
+    {
+      "key": "banks",
+      "title": "حساب‌های بانکی و صندوق",
+      "singular": "حساب مالی",
+      "group": "خزانه‌داری",
+      "icon": "landmark",
+      "description": "حساب‌های بانکی، صندوق‌ها و ماندهٔ وجوه",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "name",
+          "label": "نام",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "type",
+          "label": "نوع حساب",
+          "type": "select",
+          "options": ["بانک", "صندوق", "تنخواه"],
+          "default": "بانک"
+        },
+        {
+          "key": "accountNumber",
+          "label": "شماره حساب",
+          "type": "text"
+        },
+        {
+          "key": "iban",
+          "label": "شماره شبا",
+          "type": "text"
+        },
+        {
+          "key": "currency",
+          "label": "ارز",
+          "type": "select",
+          "options": ["تومان", "ریال", "دلار", "یورو", "درهم"],
+          "default": "تومان",
+          "required": true
+        },
+        {
+          "key": "exchangeRate",
+          "label": "نرخ تبدیل به ارز مبنا",
+          "type": "number",
+          "default": 1,
+          "required": true,
+          "min": 0.000001
+        },
+        {
+          "key": "openingBalance",
+          "label": "مانده اولیه",
+          "type": "money",
+          "default": 0,
+          "min": 0
+        },
+        {
+          "key": "notes",
+          "label": "توضیحات",
+          "type": "textarea"
+        }
+      ],
+      "status": ["فعال", "غیرفعال"]
+    },
+    {
+      "key": "receipts",
+      "title": "دریافت‌ها",
+      "singular": "دریافت",
+      "group": "خزانه‌داری",
+      "icon": "wallet",
+      "description": "ثبت و پیگیری جریان وجوه نقد و تراکنش‌های مالی",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "personId",
+          "label": "طرف حساب",
+          "type": "select",
+          "ref": "people",
+          "required": true
+        },
+        {
+          "key": "date",
+          "label": "تاریخ",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "amount",
+          "label": "مبلغ",
+          "type": "money",
+          "required": true,
+          "min": 0
+        },
+        {
+          "key": "currency",
+          "label": "ارز",
+          "type": "select",
+          "options": ["تومان", "ریال", "دلار", "یورو", "درهم"],
+          "default": "تومان",
+          "required": true
+        },
+        {
+          "key": "exchangeRate",
+          "label": "نرخ تبدیل به ارز مبنا",
+          "type": "number",
+          "default": 1,
+          "required": true,
+          "min": 0.000001
+        },
+        {
+          "key": "bankId",
+          "label": "حساب / صندوق",
+          "type": "select",
+          "ref": "banks",
+          "required": true
+        },
+        {
+          "key": "invoiceId",
+          "label": "فاکتور مرتبط",
+          "type": "select",
+          "ref": "sales"
+        },
+        {
+          "key": "method",
+          "label": "روش",
+          "type": "select",
+          "options": ["انتقال بانکی", "نقدی", "کارت‌خوان"],
+          "default": "انتقال بانکی"
+        },
+        {
+          "key": "notes",
+          "label": "توضیحات",
+          "type": "textarea"
+        }
+      ],
+      "status": ["پیش‌نویس", "تأیید شده", "لغو شده"]
+    },
+    {
+      "key": "payments",
+      "title": "پرداخت‌ها",
+      "singular": "پرداخت",
+      "group": "خزانه‌داری",
+      "icon": "wallet",
+      "description": "ثبت و پیگیری جریان وجوه نقد و تراکنش‌های مالی",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "personId",
+          "label": "طرف حساب",
+          "type": "select",
+          "ref": "people",
+          "required": true
+        },
+        {
+          "key": "date",
+          "label": "تاریخ",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "amount",
+          "label": "مبلغ",
+          "type": "money",
+          "required": true,
+          "min": 0
+        },
+        {
+          "key": "currency",
+          "label": "ارز",
+          "type": "select",
+          "options": ["تومان", "ریال", "دلار", "یورو", "درهم"],
+          "default": "تومان",
+          "required": true
+        },
+        {
+          "key": "exchangeRate",
+          "label": "نرخ تبدیل به ارز مبنا",
+          "type": "number",
+          "default": 1,
+          "required": true,
+          "min": 0.000001
+        },
+        {
+          "key": "bankId",
+          "label": "حساب / صندوق",
+          "type": "select",
+          "ref": "banks",
+          "required": true
+        },
+        {
+          "key": "invoiceId",
+          "label": "فاکتور مرتبط",
+          "type": "select",
+          "ref": "purchases"
+        },
+        {
+          "key": "method",
+          "label": "روش",
+          "type": "select",
+          "options": ["انتقال بانکی", "نقدی", "کارت‌خوان"],
+          "default": "انتقال بانکی"
+        },
+        {
+          "key": "notes",
+          "label": "توضیحات",
+          "type": "textarea"
+        }
+      ],
+      "status": ["پیش‌نویس", "تأیید شده", "لغو شده"]
+    },
+    {
+      "key": "transfers",
+      "title": "انتقال وجه",
+      "singular": "انتقال وجه",
+      "group": "خزانه‌داری",
+      "icon": "arrows",
+      "description": "جابجایی وجه میان حساب‌های هم‌ارز شرکت",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "date",
+          "label": "تاریخ",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "fromBankId",
+          "label": "حساب مبدأ",
+          "type": "select",
+          "ref": "banks",
+          "required": true
+        },
+        {
+          "key": "toBankId",
+          "label": "حساب مقصد",
+          "type": "select",
+          "ref": "banks",
+          "required": true
+        },
+        {
+          "key": "amount",
+          "label": "مبلغ",
+          "type": "money",
+          "required": true,
+          "min": 0
+        },
+        {
+          "key": "notes",
+          "label": "توضیحات",
+          "type": "textarea"
+        }
+      ],
+      "status": ["پیش‌نویس", "تأیید شده", "لغو شده"]
+    },
+    {
+      "key": "checks",
+      "title": "مدیریت چک‌ها",
+      "singular": "چک",
+      "group": "خزانه‌داری",
+      "icon": "check",
+      "description": "چک‌های دریافتی و پرداختی، سررسید و وضعیت وصول",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "personId",
+          "label": "طرف حساب",
+          "type": "select",
+          "ref": "people",
+          "required": true
+        },
+        {
+          "key": "type",
+          "label": "نوع چک",
+          "type": "select",
+          "options": ["دریافتی", "پرداختی"],
+          "default": "دریافتی"
+        },
+        {
+          "key": "date",
+          "label": "تاریخ",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "dueDate",
+          "label": "سررسید",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "amount",
+          "label": "مبلغ",
+          "type": "money",
+          "required": true,
+          "min": 0
+        },
+        {
+          "key": "currency",
+          "label": "ارز",
+          "type": "select",
+          "options": ["تومان", "ریال", "دلار", "یورو", "درهم"],
+          "default": "تومان",
+          "required": true
+        },
+        {
+          "key": "exchangeRate",
+          "label": "نرخ تبدیل به ارز مبنا",
+          "type": "number",
+          "default": 1,
+          "required": true,
+          "min": 0.000001
+        },
+        {
+          "key": "bankId",
+          "label": "حساب / صندوق",
+          "type": "select",
+          "ref": "banks",
+          "required": true
+        },
+        {
+          "key": "sayad",
+          "label": "شناسه صیادی",
+          "type": "text"
+        },
+        {
+          "key": "notes",
+          "label": "توضیحات",
+          "type": "textarea"
+        }
+      ],
+      "status": ["در جریان", "وصول شده", "برگشت خورده", "لغو شده"]
+    },
+    {
+      "key": "expenses",
+      "title": "هزینه‌ها",
+      "singular": "هزینه",
+      "group": "حسابداری",
+      "icon": "down",
+      "description": "ثبت هزینه‌های عملیاتی و پرداخت‌های شرکت",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "name",
+          "label": "شرح هزینه",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "date",
+          "label": "تاریخ",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "category",
+          "label": "دسته‌بندی",
+          "type": "select",
+          "options": ["اجاره", "حقوق", "حمل و نقل", "تبلیغات", "خدمات", "سایر"],
+          "default": "خدمات"
+        },
+        {
+          "key": "amount",
+          "label": "مبلغ",
+          "type": "money",
+          "required": true,
+          "min": 0
+        },
+        {
+          "key": "currency",
+          "label": "ارز",
+          "type": "select",
+          "options": ["تومان", "ریال", "دلار", "یورو", "درهم"],
+          "default": "تومان",
+          "required": true
+        },
+        {
+          "key": "exchangeRate",
+          "label": "نرخ تبدیل به ارز مبنا",
+          "type": "number",
+          "default": 1,
+          "required": true,
+          "min": 0.000001
+        },
+        {
+          "key": "bankId",
+          "label": "حساب / صندوق",
+          "type": "select",
+          "ref": "banks",
+          "required": true
+        },
+        {
+          "key": "notes",
+          "label": "توضیحات",
+          "type": "textarea"
+        }
+      ],
+      "status": ["پیش‌نویس", "تأیید شده", "لغو شده"]
+    },
+    {
+      "key": "income",
+      "title": "سایر درآمدها",
+      "singular": "درآمد",
+      "group": "حسابداری",
+      "icon": "up",
+      "description": "درآمدهای خارج از چرخهٔ فروش",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "name",
+          "label": "شرح درآمد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "date",
+          "label": "تاریخ",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "amount",
+          "label": "مبلغ",
+          "type": "money",
+          "required": true,
+          "min": 0
+        },
+        {
+          "key": "currency",
+          "label": "ارز",
+          "type": "select",
+          "options": ["تومان", "ریال", "دلار", "یورو", "درهم"],
+          "default": "تومان",
+          "required": true
+        },
+        {
+          "key": "exchangeRate",
+          "label": "نرخ تبدیل به ارز مبنا",
+          "type": "number",
+          "default": 1,
+          "required": true,
+          "min": 0.000001
+        },
+        {
+          "key": "bankId",
+          "label": "حساب / صندوق",
+          "type": "select",
+          "ref": "banks",
+          "required": true
+        },
+        {
+          "key": "notes",
+          "label": "توضیحات",
+          "type": "textarea"
+        }
+      ],
+      "status": ["پیش‌نویس", "تأیید شده", "لغو شده"]
+    },
+    {
+      "key": "accounts",
+      "title": "کدینگ حساب‌ها",
+      "singular": "حساب",
+      "group": "حسابداری",
+      "icon": "tree",
+      "description": "ساختار حساب‌های کل، معین و تفصیلی",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "name",
+          "label": "نام",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "type",
+          "label": "ماهیت",
+          "type": "select",
+          "options": ["دارایی", "بدهی", "سرمایه", "درآمد", "هزینه"],
+          "required": true,
+          "default": "دارایی"
+        },
+        {
+          "key": "level",
+          "label": "سطح",
+          "type": "select",
+          "options": ["کل", "معین", "تفصیلی"],
+          "default": "معین"
+        },
+        {
+          "key": "parentId",
+          "label": "حساب والد",
+          "type": "select",
+          "ref": "accounts"
+        },
+        {
+          "key": "notes",
+          "label": "توضیحات",
+          "type": "textarea"
+        }
+      ],
+      "status": ["فعال", "غیرفعال"]
+    },
+    {
+      "key": "journals",
+      "title": "اسناد حسابداری",
+      "singular": "سند حسابداری",
+      "group": "حسابداری",
+      "icon": "book",
+      "description": "اسناد دوطرفه با کنترل توازن بدهکار و بستانکار",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "date",
+          "label": "تاریخ",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "name",
+          "label": "شرح سند",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "notes",
+          "label": "توضیحات",
+          "type": "textarea"
+        }
+      ],
+      "kind": "journal",
+      "status": ["پیش‌نویس", "تأیید شده", "لغو شده"]
+    },
+    {
+      "key": "employees",
+      "title": "کارکنان",
+      "singular": "کارمند",
+      "group": "حقوق و دستمزد",
+      "icon": "user",
+      "description": "پروندهٔ کارکنان، قراردادها و اطلاعات پرداخت",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "name",
+          "label": "نام",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "nationalId",
+          "label": "کد ملی",
+          "type": "text"
+        },
+        {
+          "key": "position",
+          "label": "سمت",
+          "type": "text"
+        },
+        {
+          "key": "department",
+          "label": "واحد سازمانی",
+          "type": "text"
+        },
+        {
+          "key": "startDate",
+          "label": "شروع همکاری",
+          "type": "date"
+        },
+        {
+          "key": "salary",
+          "label": "حقوق پایه ماهانه",
+          "type": "money",
+          "required": true,
+          "min": 0
+        },
+        {
+          "key": "iban",
+          "label": "شماره شبا",
+          "type": "text"
+        },
+        {
+          "key": "phone",
+          "label": "تلفن",
+          "type": "text"
+        }
+      ],
+      "status": ["فعال", "غیرفعال"]
+    },
+    {
+      "key": "payroll",
+      "title": "لیست حقوق و فیش‌ها",
+      "singular": "فیش حقوق",
+      "group": "حقوق و دستمزد",
+      "icon": "receipt",
+      "description": "محاسبهٔ حقوق، مزایا، کسورات و خالص پرداختی",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "employeeId",
+          "label": "کارمند",
+          "type": "select",
+          "ref": "employees",
+          "required": true
+        },
+        {
+          "key": "date",
+          "label": "تاریخ",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "month",
+          "label": "ماه",
+          "type": "select",
+          "options": [
+            "فروردین",
+            "اردیبهشت",
+            "خرداد",
+            "تیر",
+            "مرداد",
+            "شهریور",
+            "مهر",
+            "آبان",
+            "آذر",
+            "دی",
+            "بهمن",
+            "اسفند"
+          ],
+          "default": "شهریور"
+        },
+        {
+          "key": "base",
+          "label": "حقوق پایه",
+          "type": "money",
+          "required": true,
+          "min": 0
+        },
+        {
+          "key": "benefits",
+          "label": "مزایا و اضافه‌کاری",
+          "type": "money",
+          "default": 0,
+          "min": 0
+        },
+        {
+          "key": "deductions",
+          "label": "سایر کسورات",
+          "type": "money",
+          "default": 0,
+          "min": 0
+        },
+        {
+          "key": "bankId",
+          "label": "حساب / صندوق",
+          "type": "select",
+          "ref": "banks",
+          "required": true
+        },
+        {
+          "key": "notes",
+          "label": "توضیحات",
+          "type": "textarea"
+        },
+        {
+          "key": "days",
+          "label": "روز کارکرد",
+          "type": "number",
+          "default": 30,
+          "min": 1,
+          "max": 31
+        },
+        {
+          "key": "overtimeHours",
+          "label": "ساعت اضافه‌کاری",
+          "type": "number",
+          "default": 0,
+          "min": 0,
+          "max": 240
+        },
+        {
+          "key": "insuranceExempt",
+          "label": "مزایای غیرمشمول بیمه",
+          "type": "money",
+          "default": 0,
+          "min": 0
+        },
+        {
+          "key": "taxExempt",
+          "label": "مزایای معاف از مالیات",
+          "type": "money",
+          "default": 0,
+          "min": 0
+        }
+      ],
+      "status": ["پیش‌نویس", "تأیید شده", "پرداخت شده", "لغو شده"]
+    },
+    {
+      "key": "assets",
+      "title": "دارایی‌های ثابت",
+      "singular": "دارایی",
+      "group": "دارایی ثابت",
+      "icon": "building",
+      "description": "شناسنامهٔ دارایی، بهای تمام‌شده و ارزش دفتری",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "name",
+          "label": "نام",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "date",
+          "label": "تاریخ",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "category",
+          "label": "گروه دارایی",
+          "type": "select",
+          "options": ["تجهیزات", "ساختمان", "خودرو", "اثاثیه"],
+          "default": "تجهیزات"
+        },
+        {
+          "key": "cost",
+          "label": "بهای خرید",
+          "type": "money",
+          "required": true,
+          "min": 0
+        },
+        {
+          "key": "salvage",
+          "label": "ارزش اسقاط",
+          "type": "money",
+          "default": 0,
+          "min": 0
+        },
+        {
+          "key": "life",
+          "label": "عمر مفید (ماه)",
+          "type": "number",
+          "required": true,
+          "default": 60,
+          "min": 1
+        },
+        {
+          "key": "location",
+          "label": "محل استقرار",
+          "type": "text"
+        },
+        {
+          "key": "notes",
+          "label": "توضیحات",
+          "type": "textarea"
+        }
+      ],
+      "status": ["فعال", "فروخته شده", "اسقاط شده"]
+    },
+    {
+      "key": "depreciation",
+      "title": "استهلاک دارایی‌ها",
+      "singular": "محاسبه استهلاک",
+      "group": "دارایی ثابت",
+      "icon": "down",
+      "description": "ثبت استهلاک خط مستقیم برای دوره‌های ماهانه",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "assetId",
+          "label": "دارایی",
+          "type": "select",
+          "ref": "assets",
+          "required": true
+        },
+        {
+          "key": "date",
+          "label": "تاریخ",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "months",
+          "label": "تعداد ماه",
+          "type": "number",
+          "default": 1,
+          "required": true,
+          "min": 1,
+          "max": 1200
+        },
+        {
+          "key": "notes",
+          "label": "توضیحات",
+          "type": "textarea"
+        }
+      ],
+      "status": ["پیش‌نویس", "تأیید شده", "لغو شده"]
+    },
+    {
+      "key": "boms",
+      "title": "فرمول ساخت",
+      "singular": "فرمول ساخت",
+      "group": "تولید",
+      "icon": "flask",
+      "description": "مواد اولیهٔ موردنیاز برای ساخت هر واحد محصول",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "name",
+          "label": "نام",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "productId",
+          "label": "محصول نهایی",
+          "type": "select",
+          "ref": "products",
+          "required": true
+        },
+        {
+          "key": "notes",
+          "label": "توضیحات",
+          "type": "textarea"
+        }
+      ],
+      "kind": "invoice",
+      "status": ["فعال", "غیرفعال"]
+    },
+    {
+      "key": "production",
+      "title": "سفارش‌های تولید",
+      "singular": "سفارش تولید",
+      "group": "تولید",
+      "icon": "factory",
+      "description": "برنامه‌ریزی تولید، مصرف مواد و ورود محصول",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "bomId",
+          "label": "فرمول ساخت",
+          "type": "select",
+          "ref": "boms",
+          "required": true
+        },
+        {
+          "key": "date",
+          "label": "تاریخ",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "warehouseId",
+          "label": "انبار",
+          "type": "select",
+          "ref": "warehouses",
+          "required": true
+        },
+        {
+          "key": "quantity",
+          "label": "تعداد تولید",
+          "type": "number",
+          "required": true,
+          "min": 1
+        },
+        {
+          "key": "overhead",
+          "label": "هزینه سربار",
+          "type": "money",
+          "default": 0,
+          "min": 0
+        },
+        {
+          "key": "notes",
+          "label": "توضیحات",
+          "type": "textarea"
+        }
+      ],
+      "status": ["پیش‌نویس", "در حال تولید", "تکمیل شده", "لغو شده"]
+    },
+    {
+      "key": "projects",
+      "title": "پروژه‌ها",
+      "singular": "پروژه",
+      "group": "پروژه‌ها",
+      "icon": "folder",
+      "description": "بودجه، زمان‌بندی و پیشرفت پروژه‌ها",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "name",
+          "label": "نام",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "personId",
+          "label": "طرف حساب",
+          "type": "select",
+          "ref": "people",
+          "required": true
+        },
+        {
+          "key": "manager",
+          "label": "مدیر پروژه",
+          "type": "text"
+        },
+        {
+          "key": "date",
+          "label": "تاریخ",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "dueDate",
+          "label": "موعد تحویل",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "budget",
+          "label": "بودجه",
+          "type": "money",
+          "required": true,
+          "min": 0
+        },
+        {
+          "key": "progress",
+          "label": "پیشرفت (%)",
+          "type": "number",
+          "default": 0,
+          "min": 0,
+          "max": 100
+        },
+        {
+          "key": "notes",
+          "label": "توضیحات",
+          "type": "textarea"
+        }
+      ],
+      "status": ["برنامه‌ریزی", "در حال اجرا", "تکمیل شده", "متوقف"]
+    },
+    {
+      "key": "project-costs",
+      "title": "هزینه و درآمد پروژه",
+      "singular": "تراکنش پروژه",
+      "group": "پروژه‌ها",
+      "icon": "wallet",
+      "description": "کنترل بودجه و سودآوری به تفکیک پروژه",
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "projectId",
+          "label": "پروژه",
+          "type": "select",
+          "ref": "projects",
+          "required": true
+        },
+        {
+          "key": "name",
+          "label": "شرح",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "date",
+          "label": "تاریخ",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "type",
+          "label": "نوع",
+          "type": "select",
+          "options": ["هزینه", "درآمد"],
+          "default": "هزینه"
+        },
+        {
+          "key": "amount",
+          "label": "مبلغ",
+          "type": "money",
+          "required": true,
+          "min": 0
+        },
+        {
+          "key": "bankId",
+          "label": "حساب / صندوق",
+          "type": "select",
+          "ref": "banks",
+          "required": true
+        },
+        {
+          "key": "notes",
+          "label": "توضیحات",
+          "type": "textarea"
+        }
+      ],
+      "status": ["پیش‌نویس", "تأیید شده", "لغو شده"]
+    },
+    {
+      "key": "companies",
+      "title": "شرکت‌ها",
+      "singular": "شرکت",
+      "group": "مدیریت",
+      "icon": "building",
+      "description": "مدیریت شرکت‌های مستقل در یک فضای کاری",
+      "global": true,
+      "admin": true,
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "name",
+          "label": "نام",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "nationalId",
+          "label": "شناسه ملی",
+          "type": "text"
+        },
+        {
+          "key": "registration",
+          "label": "شماره ثبت",
+          "type": "text"
+        },
+        {
+          "key": "phone",
+          "label": "تلفن",
+          "type": "text"
+        },
+        {
+          "key": "address",
+          "label": "نشانی",
+          "type": "textarea"
+        },
+        {
+          "key": "baseCurrency",
+          "label": "ارز مبنای دفاتر",
+          "type": "select",
+          "options": ["IRT", "IRR", "USD", "EUR", "AED"],
+          "default": "IRT",
+          "required": true
+        },
+        {
+          "key": "economicCode",
+          "label": "شماره اقتصادی",
+          "type": "text"
+        }
+      ],
+      "status": ["فعال", "غیرفعال"]
+    },
+    {
+      "key": "branches",
+      "title": "شعبه‌ها",
+      "singular": "شعبه",
+      "group": "مدیریت",
+      "icon": "network",
+      "description": "شعبه‌های شرکت انتخاب‌شده و اطلاعات تماس",
+      "admin": true,
+      "fields": [
+        {
+          "key": "code",
+          "label": "کد",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "name",
+          "label": "نام",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "manager",
+          "label": "مدیر شعبه",
+          "type": "text"
+        },
+        {
+          "key": "phone",
+          "label": "تلفن",
+          "type": "text"
+        },
+        {
+          "key": "address",
+          "label": "نشانی",
+          "type": "textarea"
+        }
+      ],
+      "status": ["فعال", "غیرفعال"]
+    },
+    {
+      "key": "fiscal-years",
+      "title": "سال‌های مالی",
+      "singular": "سال مالی",
+      "group": "مدیریت",
+      "icon": "calendar",
+      "description": "دوره‌های مالی و کنترل ثبت در دوره‌های بسته",
+      "admin": true,
+      "fields": [
+        {
+          "key": "name",
+          "label": "نام",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "startDate",
+          "label": "از تاریخ",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "endDate",
+          "label": "تا تاریخ",
+          "type": "date",
+          "required": true
+        }
+      ],
+      "status": ["باز", "بسته"]
+    },
+    {
+      "key": "currencies",
+      "title": "ارزها و نرخ تبدیل",
+      "singular": "نرخ ارز",
+      "group": "مدیریت",
+      "icon": "coins",
+      "description": "نرخ‌های آزمایشی و قابل‌ویرایش؛ مبنای دفاتر تومان است",
+      "admin": true,
+      "fields": [
+        {
+          "key": "name",
+          "label": "ارز",
+          "type": "select",
+          "options": ["تومان", "ریال", "دلار", "یورو", "درهم"],
+          "required": true
+        },
+        {
+          "key": "rate",
+          "label": "معادل یک واحد به تومان",
+          "type": "number",
+          "required": true,
+          "min": 0.000001
+        },
+        {
+          "key": "date",
+          "label": "تاریخ",
+          "type": "date",
+          "required": true
+        }
+      ]
+    },
+    {
+      "key": "users",
+      "title": "کاربران و دسترسی‌ها",
+      "singular": "کاربر",
+      "group": "مدیریت",
+      "icon": "shield",
+      "description": "مدیر: دسترسی کامل · حسابدار: عملیات مالی · مشاهده‌گر: فقط خواندن",
+      "global": true,
+      "admin": true,
+      "fields": [
+        {
+          "key": "name",
+          "label": "نام",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "email",
+          "label": "ایمیل",
+          "type": "email",
+          "required": true
+        },
+        {
+          "key": "role",
+          "label": "نقش",
+          "type": "select",
+          "options": ["مدیر", "حسابدار", "مشاهده‌گر"],
+          "required": true,
+          "default": "مشاهده‌گر"
+        },
+        {
+          "key": "password",
+          "label": "رمز عبور (برای تغییر وارد کنید)",
+          "type": "text",
+          "hidden": true
+        }
+      ],
+      "status": ["فعال", "غیرفعال"]
+    }
+  ],
+  "reports": [
+    {
+      "key": "profit-loss",
+      "title": "سود و زیان",
+      "description": "درآمدها، هزینه‌ها و سود خالص دوره",
+      "icon": "chart"
+    },
+    {
+      "key": "balance-sheet",
+      "title": "ترازنامه",
+      "description": "وضعیت دارایی، بدهی و حقوق مالکانه",
+      "icon": "scale"
+    },
+    {
+      "key": "trial-balance",
+      "title": "تراز آزمایشی",
+      "description": "گردش و ماندهٔ بدهکار و بستانکار حساب‌ها",
+      "icon": "columns"
+    },
+    {
+      "key": "journal",
+      "title": "دفتر روزنامه",
+      "description": "تمام ثبت‌های مالی به ترتیب تاریخ",
+      "icon": "book"
+    },
+    {
+      "key": "ledger",
+      "title": "دفتر کل",
+      "description": "گردش تفصیلی هر حساب و ماندهٔ آن",
+      "icon": "book"
+    },
+    {
+      "key": "receivables",
+      "title": "بدهکاران و بستانکاران",
+      "description": "ماندهٔ طرف حساب‌ها و مطالبات باز",
+      "icon": "users"
+    },
+    {
+      "key": "inventory",
+      "title": "موجودی و ارزش انبار",
+      "description": "تعداد و ارزش کالا به تفکیک انبار",
+      "icon": "warehouse"
+    },
+    {
+      "key": "cashflow",
+      "title": "جریان نقدی",
+      "description": "ورودی و خروجی وجوه نقد",
+      "icon": "arrows"
+    },
+    {
+      "key": "tax",
+      "title": "مالیات و عوارض",
+      "description": "مالیات خرید و فروش بر اساس نرخ ثبت‌شده در فاکتور",
+      "icon": "receipt"
+    },
+    {
+      "key": "project-profit",
+      "title": "سودآوری پروژه‌ها",
+      "description": "مقایسهٔ بودجه، هزینه و درآمد پروژه",
+      "icon": "folder"
+    }
+  ]
+}

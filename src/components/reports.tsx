@@ -74,7 +74,7 @@ export function ReportsIndex() {
 }
 type Result = { rows: TableRow[]; summary: { label: string; value: number; unit?: string }[] };
 export function ReportView({ reportKey }: { reportKey: string }) {
-  const { api, boot, fmt } = useApp();
+  const { api, boot, fmt, currency } = useApp();
   const definition = reports.find((r) => r.key === reportKey)!;
   const [result, setResult] = useState<Result | null>(null);
   const [from, setFrom] = useState('');
@@ -254,7 +254,7 @@ export function ReportView({ reportKey }: { reportKey: string }) {
         >
           کل دوره مالی
         </button>
-        <span className="report-base-unit">مبنای دفاتر: تومان</span>
+        <span className="report-base-unit">مبنای دفاتر: {currency}</span>
       </div>
       {error && (
         <div className="form-error" role="alert">
@@ -272,7 +272,7 @@ export function ReportView({ reportKey }: { reportKey: string }) {
                 <small>{s.label}</small>
                 <strong>
                   {fmt(s.value)}
-                  <span>{s.unit || 'تومان'}</span>
+                  <span>{s.unit || currency}</span>
                 </strong>
               </div>
             ))}
@@ -288,7 +288,7 @@ export function ReportView({ reportKey }: { reportKey: string }) {
           </div>
           <p className="report-note">
             <Icon name="check" size={15} /> گزارش بر اساس اطلاعات شرکت، شعبه و سال مالی انتخاب‌شده
-            تهیه شده است. مبالغ ارزی با نرخ ثبت‌شده در سند به تومان تبدیل می‌شوند.
+            تهیه شده است. مبالغ ارزی با نرخ ثبت‌شده در سند به ارز مبنای شرکت تبدیل می‌شوند.
           </p>
         </>
       ) : (

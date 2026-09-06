@@ -46,7 +46,7 @@ export function DataTable({
   toolbar?: React.ReactNode;
   emptyAction?: React.ReactNode;
 }) {
-  const { fmt, date, notify } = useApp();
+  const { fmt, date, notify, currency } = useApp();
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [sort, setSort] = useState({ key: '', direction: 1 });
@@ -375,7 +375,7 @@ export function DataTable({
                     ) : c.type === 'money' ? (
                       <span className="amount-cell">
                         {fmt(r[c.key])}
-                        <small>{String(r.currency || 'تومان')}</small>
+                        <small>{String(r.currency || currency)}</small>
                       </span>
                     ) : c.type === 'date' ? (
                       <span className="date-cell">{date(r[c.key])}</span>

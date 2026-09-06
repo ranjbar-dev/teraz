@@ -557,6 +557,44 @@ export const modules: Module[] = [
     status: ['فعال', 'غیرفعال'],
   },
 ];
+
+// Additional fields used by the real accounting API.
+const extend = (key: string, fields: Field[]) => {
+  const m = modules.find((m) => m.key === key)!;
+  m.fields = [...m.fields, ...fields];
+};
+extend('companies', [
+  f('baseCurrency', 'ارز مبنای دفاتر', 'select', {
+    options: ['IRT', 'IRR', 'USD', 'EUR', 'AED'],
+    default: 'IRT',
+    required: true,
+  }),
+  f('economicCode', 'شماره اقتصادی'),
+]);
+extend('people', [
+  f('economicCode', 'شماره اقتصادی'),
+  f('legalType', 'ماهیت شخص', 'select', { options: ['حقیقی', 'حقوقی'], default: 'حقیقی' }),
+]);
+extend('products', [f('taxId', 'شناسه کالا/خدمت مالیاتی'), f('taxUnit', 'کد واحد مالیاتی')]);
+extend('stock', [f('unitCost', 'بهای هر واحد رسید', 'money', { default: 0, min: 0 })]);
+extend('sales-returns', [
+  f('originalInvoiceId', 'فاکتور فروش مرجع', 'select', { ref: 'sales', required: true }),
+]);
+extend('purchase-returns', [
+  f('originalInvoiceId', 'فاکتور خرید مرجع', 'select', { ref: 'purchases', required: true }),
+]);
+const payroll = modules.find((m) => m.key === 'payroll')!;
+payroll.fields = payroll.fields.filter((f) => !['insurance', 'tax'].includes(f.key));
+extend('payroll', [
+  f('days', 'روز کارکرد', 'number', { default: 30, min: 1, max: 31 }),
+  f('overtimeHours', 'ساعت اضافه‌کاری', 'number', { default: 0, min: 0, max: 240 }),
+  f('insuranceExempt', 'مزایای غیرمشمول بیمه', 'money', { default: 0, min: 0 }),
+  f('taxExempt', 'مزایای معاف از مالیات', 'money', { default: 0, min: 0 }),
+]);
+for (const m of modules)
+  for (const field of m.fields)
+    if (field.key === 'exchangeRate') field.label = 'نرخ تبدیل به ارز مبنا';
+
 export const reports = [
   {
     key: 'profit-loss',
