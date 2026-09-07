@@ -754,3 +754,55 @@
     font-size: 28px;
   }
 }
+/* Local provider test screens share the accounting application's light theme. */
+.local-lab {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 48px 24px;
+  display: grid;
+  gap: 24px;
+}
+.local-lab .eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.local-lab h1 {
+  font-size: clamp(24px, 3vw, 32px);
+  font-weight: 750;
+  line-height: 1.7;
+  margin: 12px 0 8px;
+  letter-spacing: -0.6px;
+}
+.local-lab h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 14px 0 8px;
+}
+.local-lab h3 {
+  font-size: 30px;
+  font-weight: 750;
+  margin: 12px 0;
+  color: #137455;
+  font-variant-numeric: tabular-nums;
+}
+.local-lab p {
+  line-height: 1.9;
+}
+.local-lab p[dir='ltr'] {
+  font-size: 12px;
+  color: #72857c;
+  overflow-wrap: anywhere;
+  margin-top: 14px;
+}
+.local-lab .form-panel {
+  padding: 28px;
+}
+.local-lab .saas-form-actions { flex-wrap: wrap; }
+@media (max-width: 640px) {
+  .local-lab {
+    padding: 24px 14px;
+  }
+  .local-lab .saas-form-actions { flex-direction: column; align-items: stretch; }
+  .local-lab .saas-form-actions > .btn { width: 100%; justify-content: center; }
+}

@@ -23,6 +23,8 @@ export const stateLabel = (v: string) =>
       VERIFIED: 'تأیید پرداخت',
       REQUEST_FAILED: 'خطای درگاه',
       DRY_RUN: 'پیش‌نمایش محلی',
+      LOCAL_SUCCESS: 'موفق در شبیه‌ساز محلی',
+      LOCAL_FAILED: 'رد در شبیه‌ساز محلی',
       RETRY: 'تلاش مجدد',
       REVIEW_REQUIRED: 'نیازمند بررسی',
     }) as Item

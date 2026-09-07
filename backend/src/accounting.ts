@@ -1,4 +1,5 @@
 import Decimal from 'decimal.js';
+import { toJalaali } from 'jalaali-js';
 import { PayrollService } from './payroll';
 import { D, money, json, Tx, Scope, Principal, ApiError, validDate, audit } from './core';
 type Entry = {
@@ -14,6 +15,14 @@ type Entry = {
   foreignAmount?: Decimal.Value;
   exchangeRate?: Decimal.Value;
 };
+export function depreciationPeriod(date: Date, months: unknown) {
+  const count = Number(months);
+  if (!Number.isInteger(count) || count < 1 || count > 1200)
+    throw new ApiError('تعداد ماه استهلاک باید عدد صحیح بین ۱ تا ۱۲۰۰ باشد.', 422);
+  const j = toJalaali(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
+  const end = j.jy * 12 + j.jm - 1;
+  return { start: end - count + 1, end, months: count, calendar: 'persian' };
+}
 export function invoiceTotal(data: any, lines: any[]) {
   const rows = lines.map((l) => {
     const gross = D(l.quantity).mul(D(l.price));
@@ -587,24 +596,13 @@ export class AccountingService {
     } else if (key === 'depreciation') {
       const asset = await tx.record.findUniqueOrThrow({ where: { id: d.assetId } });
       const a = asset.data as any;
-      const periodStart = new Date(record.date);
-      periodStart.setUTCDate(1);
-      const periodEnd = new Date(periodStart);
-      periodEnd.setUTCMonth(periodEnd.getUTCMonth() + 1);
-      if (
-        await tx.record.findFirst({
-          where: {
-            companyId: s.companyId,
-            module: 'depreciation',
-            postedAt: { not: null },
-            reversedAt: null,
-            data: { path: ['assetId'], equals: d.assetId },
-            date: { gte: periodStart, lt: periodEnd },
-          },
-        })
-      )
-        throw new ApiError('برای این دارایی در این ماه استهلاک ثبت شده است.', 409);
-      const past = await tx.record.aggregate({
+      const period = depreciationPeriod(record.date!, d.months);
+      if (a.purchaseDate) {
+        const acquired = depreciationPeriod(validDate(a.purchaseDate), 1);
+        if (period.start < acquired.start || record.date! < validDate(a.purchaseDate))
+          throw new ApiError('دورهٔ استهلاک نمی‌تواند پیش از خرید دارایی آغاز شود.', 422);
+      }
+      const past = await tx.record.findMany({
         where: {
           companyId: s.companyId,
           module: key,
@@ -612,11 +610,18 @@ export class AccountingService {
           reversedAt: null,
           data: { path: ['assetId'], equals: d.assetId },
         },
-        _sum: { total: true },
+        select: { date: true, data: true, total: true },
       });
+      if (
+        past.some((r) => {
+          const previous = depreciationPeriod(r.date!, (r.data as any).months);
+          return previous.start <= period.end && previous.end >= period.start;
+        })
+      )
+        throw new ApiError('دورهٔ شمسی استهلاک با دورهٔ قبلاً ثبت‌شده هم‌پوشانی دارد.', 409);
       const remaining = D(a.cost)
         .sub(D(a.salvage))
-        .sub(D(past._sum.total || 0));
+        .sub(past.reduce((sum, r) => sum.add(r.total), D(0)));
       total = Decimal.min(
         remaining,
         D(a.cost).sub(D(a.salvage)).div(D(a.life)).mul(D(d.months)),
@@ -624,7 +629,7 @@ export class AccountingService {
       if (total.lte(0)) throw new ApiError('ارزش قابل استهلاک باقی نمانده است.', 422);
       line('depreciation', total, 0);
       line('accumulated', 0, total);
-      snapshot = { ...snapshot, assetSnapshot: a };
+      snapshot = { ...snapshot, assetSnapshot: a, depreciationPeriod: period };
     } else if (key === 'production') {
       const bom = await tx.record.findFirst({
         where: { id: d.bomId, companyId: s.companyId, module: 'boms', status: 'فعال' },

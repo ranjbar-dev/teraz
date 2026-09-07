@@ -41,13 +41,14 @@ try {
   }
   browser = await chromium.launch({
     headless: true,
-    channel: String.fromCharCode(99, 104, 114, 111, 109, 101),
+    channel: 'chrome',
   });
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1000 },
     locale: 'fa-IR',
   });
   const page = await context.newPage();
+  page.setDefaultTimeout(20000);
   page.on('pageerror', (e) =>
     failures.push({ type: 'javascript', url: page.url(), error: e.message }),
   );
@@ -103,6 +104,65 @@ try {
   await page.screenshot({ path: path.join(artifact, 'dashboard-desktop.png'), fullPage: true });
   await check('/subscription');
   await page.screenshot({ path: path.join(artifact, 'subscription-desktop.png'), fullPage: true });
+  await page.getByRole('button', { name: 'پرداخت آزمایشی' }).first().click();
+  await page.waitForURL('**/test-payment?id=*');
+  await page.getByRole('button', { name: 'پرداخت موفق آزمایشی', exact: true }).waitFor();
+  await page.screenshot({ path: path.join(artifact, 'local-payment-desktop.png'), fullPage: true });
+  await page.getByRole('button', { name: 'پرداخت موفق آزمایشی', exact: true }).click();
+  await page.getByRole('link', { name: 'مشاهدهٔ اشتراک و سوابق' }).waitFor();
+  assert.ok((await page.getByRole('status').textContent()).includes('تمدید شد'));
+  visited.push('/test-payment (successful local checkout)');
+  await check('/local-lab');
+  await page.screenshot({ path: path.join(artifact, 'local-mail-desktop.png'), fullPage: true });
+  await check('/people');
+  const listResponse = page.waitForResponse(
+    (r) =>
+      r.url().includes('/api/people?') && r.url().includes('q=') && r.request().method() === 'GET',
+  );
+  await page
+    .getByRole('textbox', { name: 'جست‌وجو در اشخاص و طرف حساب‌ها', exact: true })
+    .fill('مشتری سنجش');
+  await listResponse;
+  await page.waitForFunction(() =>
+    document.querySelector('.table-footer')?.textContent?.includes('۵٬۰۰۰'),
+  );
+  assert.equal(await page.locator('tbody tr').count(), 8);
+  const next = page.waitForResponse(
+    (r) => r.url().includes('/api/people?') && r.url().includes('page=2'),
+  );
+  await page.getByRole('button', { name: 'صفحه بعد', exact: true }).click();
+  await next;
+  await page.getByRole('textbox', { name: 'جست‌وجوی نام', exact: true }).fill('سنجش 499');
+  await page.waitForFunction(() =>
+    document.querySelector('.table-footer')?.textContent?.includes('از ۱۱ مورد'),
+  );
+  const downloadEvent = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'خروجی اکسل', exact: true }).click();
+  const download = await downloadEvent;
+  const exported = path.join(root, '.runtime/paged-export.xlsx');
+  await download.saveAs(exported);
+  const { default: ExcelJS } = await import('exceljs');
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(exported);
+  assert.equal(
+    workbook.worksheets[0].rowCount,
+    12,
+    'Export includes all 11 filtered results, not just current page',
+  );
+  await page.getByRole('textbox', { name: 'جست‌وجوی نام', exact: true }).fill('سنجش 4999');
+  await page.waitForFunction(() => document.querySelectorAll('tbody tr').length === 1);
+  assert.ok((await page.locator('tbody').textContent()).includes('4999'));
+  await check('/integrations');
+  await page.getByLabel('شماره همراه', { exact: true }).fill('09123456789');
+  await page.getByLabel('متن پیام', { exact: true }).fill('آزمایش مرورگر صف');
+  await page.getByRole('button', { name: 'ساخت پیش‌نمایش', exact: true }).click();
+  await page
+    .getByRole('textbox', { name: 'جست‌وجو در صف و نتیجهٔ درخواست‌ها', exact: true })
+    .fill('آزمایش مرورگر صف');
+  await page.waitForFunction(() =>
+    document.querySelector('tbody')?.textContent?.includes('موفق در شبیه‌ساز محلی'),
+  );
+  await page.screenshot({ path: path.join(artifact, 'local-queue-desktop.png'), fullPage: true });
   await context.addCookies([cookie(fixture.platformCookie)]);
   await check('/platform');
   await page.screenshot({ path: path.join(artifact, 'platform-desktop.png'), fullPage: true });
@@ -130,7 +190,14 @@ try {
     'Platform mobile overflow',
   );
   await context.clearCookies();
-  for (const r of ['login', 'register', 'forgot-password', 'reset-password', 'accept-invitation'])
+  for (const r of [
+    'login',
+    'register',
+    'forgot-password',
+    'reset-password',
+    'accept-invitation',
+    'verify-email',
+  ])
     await check('/' + r);
   await check('/login');
   await page.screenshot({ path: path.join(artifact, 'login-mobile.png'), fullPage: true });

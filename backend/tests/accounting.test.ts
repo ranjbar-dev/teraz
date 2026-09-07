@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { db, D, transaction } from '../src/core';
 import { BillingService } from '../src/platform';
 import { SmsIrClient } from '../src/smsir';
+import { depreciationPeriod } from '../src/accounting';
 import { calculatePayroll, samplePayrollRules } from '../src/payroll';
 import { modules } from '../src/core';
 import { processJob, encryptModian } from '../src/integrations';
@@ -662,6 +663,260 @@ test('real PostgreSQL + HTTP accounting and SaaS workflows', async (t) => {
     },
   );
   // Browser coverage uses the same isolated database and authenticated sessions.
+  await t.test(
+    'SQL search uses bound values, Persian normalization and numerical ordering',
+    async () => {
+      const literal = await create('people', { name: 'مشتری كيان ۱۲۳ %_' });
+      const result = (await call(c, 'people?limit=1&q=' + encodeURIComponent('کیان 123 %_'))).data;
+      assert.equal(result.totalCount, 1);
+      assert.equal(result.rows[0].id, literal.id);
+      await call(c, 'people?limit=1&filters=bad', 'GET', undefined, 422);
+      await call(
+        c,
+        'people?limit=1&sort=' + encodeURIComponent('name; DROP TABLE Record'),
+        'GET',
+        undefined,
+        422,
+      );
+      const search = (
+        await call(
+          c,
+          'sales?limit=1&filters=' +
+            encodeURIComponent(JSON.stringify({ personId: 'مشتری آزمون' })),
+        )
+      ).data;
+      assert.ok(search.totalCount >= 1);
+      assert.equal(search.rows.length, 1);
+      const filtered = (
+        await call(
+          c,
+          'people?limit=2&filters=' + encodeURIComponent(JSON.stringify({ name: 'کیان' })),
+        )
+      ).data;
+      assert.equal(filtered.rows[0].id, literal.id);
+      const dates = (
+        await call(
+          c,
+          'sales?limit=2&filters=' + encodeURIComponent(JSON.stringify({ date: '۱۴۰۵/۰۱' })),
+        )
+      ).data;
+      assert.ok(dates.totalCount > 0);
+    },
+  );
+  await t.test(
+    'local payment simulator settles once and rejects reopening a cancelled payment',
+    async () => {
+      const before = (await call(c, 'subscription')).data.subscription.endsAt;
+      const checkout = (await call(c, 'billing/checkout', 'POST', { planId: plans[0].id })).data;
+      assert.equal(checkout.mode, 'local');
+      assert.ok(checkout.url.startsWith('/test-payment?id='));
+      await call(c, 'billing/local/' + checkout.paymentId);
+      const responses = await Promise.all(
+        [1, 2].map(() =>
+          call(c, 'billing/local/' + checkout.paymentId, 'POST', { outcome: 'success' }),
+        ),
+      );
+      assert.ok(responses.every((r) => r.data.ok));
+      const after = (await call(c, 'subscription')).data.subscription.endsAt;
+      assert.equal(
+        new Date(after).getTime() - new Date(before).getTime(),
+        plans[0].durationDays * 86400000,
+      );
+      const cancelled = (await call(c, 'billing/checkout', 'POST', { planId: plans[0].id })).data;
+      await call(c, 'billing/local/' + cancelled.paymentId, 'POST', { outcome: 'cancel' });
+      await call(c, 'billing/local/' + cancelled.paymentId, 'POST', { outcome: 'success' }, 409);
+      assert.equal((await call(c, 'subscription')).data.subscription.endsAt, after);
+    },
+  );
+  await t.test(
+    'local email verification is one-use and mailbox is limited to the recipient',
+    async () => {
+      await call(c, 'auth/request-verification', 'POST', {});
+      const inbox = (await call(c, 'local-mail')).data.rows;
+      const mail = inbox.find((r: any) => r.kind === 'verify-email');
+      assert.ok(mail);
+      const token = new URL(mail.url).searchParams.get('token');
+      await call(empty, 'auth/verify-email', 'POST', { token });
+      assert.ok((await call(c, 'auth/me')).data.user.emailVerifiedAt);
+      await call(empty, 'auth/verify-email', 'POST', { token }, 422);
+      const unrelated = await call(empty, 'auth/register', 'POST', {
+        email: 'inbox-' + slug + '@test.local',
+        password: 'Local-inbox-private-password!',
+        name: 'کاربر صندوق',
+        organizationName: 'سازمان صندوق',
+        slug: 'inbox-' + slug,
+      });
+      const own = (await call({ cookie: unrelated.cookie, scope: {} }, 'local-mail')).data.rows;
+      assert.ok(own.every((r: any) => r.email === 'inbox-' + slug + '@test.local'));
+    },
+  );
+  await t.test(
+    'local provider scenarios distinguish success, rejection, retry and ambiguous delivery',
+    async () => {
+      await call(c, 'integrations/smsir', 'PATCH', { mode: 'local', enabled: true, config: {} });
+      for (const [scenario, expected] of [
+        ['success', 'LOCAL_SUCCESS'],
+        ['reject', 'LOCAL_FAILED'],
+        ['retry', 'LOCAL_SUCCESS'],
+        ['timeout', 'REVIEW_REQUIRED'],
+      ]) {
+        const job = (
+          await call(c, 'integrations/smsir', 'POST', {
+            mobile: '09123456789',
+            message: 'آزمایش محلی',
+            scenario,
+          })
+        ).data;
+        let current: any;
+        for (let i = 0; i < 8; i++) {
+          await db.integrationJob.updateMany({
+            where: { id: job.id, status: 'RETRY' },
+            data: { nextAttemptAt: new Date() },
+          });
+          await processJob();
+          current = await db.integrationJob.findUniqueOrThrow({ where: { id: job.id } });
+          if (current.status === expected) break;
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        assert.equal(current.status, expected);
+        assert.equal(current.result.mode, 'local');
+        if (scenario === 'reject') {
+          await call(c, `integrations/${job.id}/retry`, 'POST', { scenario: 'success' });
+          await processJob();
+          assert.equal(
+            (await db.integrationJob.findUniqueOrThrow({ where: { id: job.id } })).status,
+            'LOCAL_SUCCESS',
+          );
+        }
+      }
+    },
+  );
+  await t.test('local laboratory is explicitly disabled in production', async () => {
+    const { requireLocalMode } = await import('../src/local-mode');
+    const previous = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      assert.throws(() => requireLocalMode());
+    } finally {
+      if (previous === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = previous;
+    }
+  });
+  await t.test(
+    'local Modian simulation accepts only a posted invoice in the current company',
+    async () => {
+      await call(c, 'integrations/modian', 'PATCH', { mode: 'local', enabled: true, config: {} });
+      const invoice = await db.record.findFirstOrThrow({
+        where: {
+          companyId: c.scope.companyId,
+          module: 'sales',
+          postedAt: { not: null },
+          reversedAt: null,
+        },
+      });
+      const job = (
+        await call(c, 'integrations/modian', 'POST', { recordId: invoice.id, scenario: 'success' })
+      ).data;
+      await processJob();
+      const result = await db.integrationJob.findUniqueOrThrow({ where: { id: job.id } });
+      assert.equal(result.status, 'LOCAL_SUCCESS');
+      await call(
+        c,
+        'integrations/modian',
+        'POST',
+        { recordId: created.people.id, scenario: 'success' },
+        422,
+      );
+    },
+  );
+  await t.test('depreciation periods follow Persian months and reject overlaps', async () => {
+    assert.equal(
+      depreciationPeriod(new Date('2026-03-25'), 1).end,
+      depreciationPeriod(new Date('2026-04-15'), 1).end,
+    );
+    assert.notEqual(
+      depreciationPeriod(new Date('2026-04-15'), 1).end,
+      depreciationPeriod(new Date('2026-04-25'), 1).end,
+    );
+    assert.throws(() => depreciationPeriod(new Date(date), 1.5));
+    await call(
+      c,
+      'depreciation',
+      'POST',
+      { code: 'DUPLICATE-DEP', date, assetId: created.assets.id, months: 1, status: 'تأیید شده' },
+      409,
+    );
+    await call(
+      c,
+      'depreciation',
+      'POST',
+      {
+        code: 'OVERLAP-DEP',
+        date: '2026-04-25',
+        assetId: created.assets.id,
+        months: 2,
+        status: 'تأیید شده',
+      },
+      409,
+    );
+  });
+  await t.test(
+    'paged SQL listing stays bounded with 5000 records and concurrent searches',
+    async () => {
+      await db.record.createMany({
+        data: Array.from({ length: 5000 }, (_, i) => ({
+          organizationId: boot.scope.organizationId,
+          companyId: c.scope.companyId,
+          module: 'people',
+          code: 'LOAD-' + String(i).padStart(5, '0'),
+          name: 'مشتری سنجش ' + i,
+          status: 'فعال',
+          data: { notes: 'دادهٔ مجزای سنجش' },
+        })),
+      });
+      const durations: number[] = [];
+      let maxResponseBytes = 0;
+      for (let batch = 0; batch < 2; batch++)
+        await Promise.all(
+          Array.from({ length: 10 }, async (_, i) => {
+            const start = performance.now();
+            const result = (
+              await call(c, `people?limit=25&page=${i + 1}&q=${encodeURIComponent('مشتری سنجش')}`)
+            ).data;
+            durations.push(performance.now() - start);
+            assert.equal(result.totalCount, 5000);
+            assert.equal(result.rows.length, 25);
+            maxResponseBytes = Math.max(
+              maxResponseBytes,
+              Buffer.byteLength(JSON.stringify(result)),
+            );
+          }),
+        );
+      durations.sort((a, b) => a - b);
+      const p95 = durations[Math.ceil(durations.length * 0.95) - 1];
+      assert.ok(p95 < 5000, `Concurrent list p95 exceeded 5 seconds: ${p95}`);
+      assert.ok(maxResponseBytes < 100000);
+      writeFileSync(
+        path.resolve(__dirname, '../../artifacts/backend-review/load-report.json'),
+        JSON.stringify(
+          {
+            records: 5000,
+            concurrency: 10,
+            requests: durations.length,
+            pageSize: 25,
+            p50Ms: Math.round(durations[9]),
+            p95Ms: Math.round(p95),
+            maxResponseBytes,
+            generatedAt: new Date().toISOString(),
+            scope:
+              'Isolated database; list/search benchmark only, not a production capacity certification',
+          },
+          null,
+          2,
+        ),
+      );
+    },
+  );
   writeFileSync(
     path.resolve(__dirname, '../../.runtime/browser-fixture.json'),
     JSON.stringify({

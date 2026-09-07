@@ -1,7 +1,7 @@
 'use client';
 import { Attachments } from './workspace-services';
 import { SearchSelect } from './search-select';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -19,20 +19,30 @@ import {
 import { useApp } from './provider';
 import { PageHeading, Loading, Badge, Confirm } from './ui';
 import { Icon } from './icons';
-import { DataTable, normalize, type Column, type TableRow } from './data-table';
+import {
+  DataTable,
+  normalize,
+  type Column,
+  type TableRow,
+  type TableQuery,
+  type TableResult,
+} from './data-table';
 import { DatePicker } from './date-picker';
 import { masterKeys } from '@/lib/modules';
 import { active, invoiceTotals, number } from '@/lib/domain';
 import type { Module, Row, Line, Field } from '@/lib/types';
 
-export function useRows(key: string) {
+export function useRows(key: string, paged = false) {
   const { api, currency } = useApp();
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState('');
+  const [summary, setSummary] = useState<{ status: string; count: number; total: string }[]>([]);
+  const endpoint = paged ? key + '?limit=8' : key;
   const refresh = async () => {
     try {
-      const data = await api<{ rows: Row[] }>(key);
+      const data = await api<{ rows: Row[]; summary?: typeof summary }>(endpoint);
       setRows(data.rows);
+      setSummary(data.summary || []);
       setError('');
     } catch (e) {
       setError((e as Error).message);
@@ -42,9 +52,12 @@ export function useRows(key: string) {
     let cancelled = false;
     setRows(null);
     setError('');
-    api<{ rows: Row[] }>(key)
+    api<{ rows: Row[]; summary?: typeof summary }>(endpoint)
       .then((d) => {
-        if (!cancelled) setRows(d.rows);
+        if (!cancelled) {
+          setRows(d.rows);
+          setSummary(d.summary || []);
+        }
       })
       .catch((e) => {
         if (!cancelled) setError(e.message);
@@ -52,14 +65,34 @@ export function useRows(key: string) {
     return () => {
       cancelled = true;
     };
-  }, [api, key]);
-  return { rows, error, refresh };
+  }, [api, endpoint]);
+  return { rows, error, refresh, summary };
 }
 export function ModuleList({ mod }: { mod: Module }) {
-  const { rows, error, refresh } = useRows(mod.key);
-  const { boot, fmt, canWrite, currency } = useApp();
+  const paged = !['companies', 'users'].includes(mod.key);
+  const { rows, error, refresh, summary } = useRows(mod.key, paged);
+  const { api, boot, fmt, canWrite, currency } = useApp();
   const router = useRouter();
   const [status, setStatus] = useState('all');
+  const [revision, setRevision] = useState(0);
+  const load = useCallback(
+    (q: TableQuery) =>
+      api<TableResult>(
+        mod.key +
+          '?' +
+          new URLSearchParams({
+            ...q,
+            page: String(q.page),
+            limit: String(q.limit),
+            status,
+          }).toString(),
+      ),
+    [api, mod.key, status, revision],
+  );
+  const count = (s?: string) =>
+    paged
+      ? summary.filter((r) => !s || r.status === s).reduce((n, r) => n + r.count, 0)
+      : (rows || []).filter((r) => !s || r.status === s).length;
   if (error)
     return (
       <div className="empty-state">
@@ -168,20 +201,28 @@ export function ModuleList({ mod }: { mod: Module }) {
           : mod.key === 'assets'
             ? 'cost'
             : 'amount';
-  const sum = rows.reduce(
-    (s, r) =>
-      s +
-      number(r[sumKey]) *
-        (number(r.exchangeRate) ||
-          (mod.key === 'banks'
-            ? number(boot?.lookups.currencies?.find((c) => c.name === r.currency)?.rate) || 1
-            : 1)),
-    0,
-  );
+  const sum = paged
+    ? summary.reduce((n, r) => n + Number(r.total), 0)
+    : rows.reduce(
+        (s, r) =>
+          s +
+          number(r[sumKey]) *
+            (number(r.exchangeRate) ||
+              (mod.key === 'banks'
+                ? number(boot?.lookups.currencies?.find((c) => c.name === r.currency)?.rate) || 1
+                : 1)),
+        0,
+      );
   return (
     <>
       <PageHeading eyebrow={mod.group} title={mod.title} description={mod.description}>
-        <button className="btn" onClick={refresh}>
+        <button
+          className="btn"
+          onClick={() => {
+            void refresh();
+            setRevision((r) => r + 1);
+          }}
+        >
           <RefreshCw size={16} /> به‌روزرسانی
         </button>
         {canWrite && (
@@ -199,7 +240,7 @@ export function ModuleList({ mod }: { mod: Module }) {
           <span>
             <small>تعداد کل {mod.title}</small>
             <strong>
-              {fmt(rows.length)} <em>مورد</em>
+              {fmt(count())} <em>مورد</em>
             </strong>
           </span>
         </div>
@@ -209,13 +250,7 @@ export function ModuleList({ mod }: { mod: Module }) {
             <span>
               <small>{mod.status.includes('تأیید شده') ? 'اسناد تأییدشده' : mod.status[0]}</small>
               <strong>
-                {fmt(
-                  rows.filter(
-                    (r) =>
-                      r.status ===
-                      (mod.status?.includes('تأیید شده') ? 'تأیید شده' : mod.status?.[0]),
-                  ).length,
-                )}{' '}
+                {fmt(count(mod.status?.includes('تأیید شده') ? 'تأیید شده' : mod.status?.[0]))}{' '}
                 <em>مورد</em>
               </strong>
             </span>
@@ -255,7 +290,7 @@ export function ModuleList({ mod }: { mod: Module }) {
         {mod.status && (
           <div className="status-tabs">
             <button className={status === 'all' ? 'selected' : ''} onClick={() => setStatus('all')}>
-              همه <span>{fmt(rows.length)}</span>
+              همه <span>{fmt(count())}</span>
             </button>
             {mod.status.map((s) => (
               <button
@@ -264,13 +299,14 @@ export function ModuleList({ mod }: { mod: Module }) {
                 onClick={() => setStatus(s)}
               >
                 {s}
-                <span>{fmt(rows.filter((r) => r.status === s).length)}</span>
+                <span>{fmt(count(s))}</span>
               </button>
             ))}
           </div>
         )}
         <DataTable
-          key={mod.key}
+          key={mod.key + ':' + status}
+          load={paged ? load : undefined}
           rows={status === 'all' ? rows : rows.filter((r) => r.status === status)}
           columns={columns}
           title={mod.title}

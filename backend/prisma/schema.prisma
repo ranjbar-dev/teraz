@@ -12,6 +12,7 @@ model User {
   passwordHash String
   globalRole String @default("USER")
   active Boolean @default(true)
+  emailVerifiedAt DateTime?
   createdAt DateTime @default(now())
   memberships Membership[]
   sessions Session[]
@@ -144,6 +145,7 @@ model Record {
   @@unique([id,companyId])
   @@index([organizationId,companyId,module,date,id])
   @@index([companyId,yearId,branchId,module])
+  @@index([companyId,module,yearId,createdAt(sort: Desc),id(sort: Desc)], map: "Record_scope_created_idx")
 }
 model RecordLine {
   id String @id @default(uuid()) @db.Uuid
@@ -172,6 +174,7 @@ model RecordReference {
   source Record @relation("referenceSource",fields:[sourceId,companyId],references:[id,companyId],onDelete:Cascade)
   target Record @relation("referenceTarget",fields:[targetId,companyId],references:[id,companyId],onDelete:Restrict)
   @@unique([sourceId,field,targetId])
+  @@index([sourceId], map: "RecordReference_source_idx")
 }
 model Journal {
   id String @id @default(uuid()) @db.Uuid
@@ -349,4 +352,22 @@ model Invitation {
   acceptedAt DateTime?
   createdAt DateTime @default(now())
   @@index([organizationId,email])
+}
+
+model EmailVerification {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  email String
+  tokenHash String @unique
+  expiresAt DateTime
+  usedAt DateTime?
+  @@index([userId])
+}
+model LocalMail {
+  id String @id @default(uuid()) @db.Uuid
+  email String
+  kind String
+  url String
+  createdAt DateTime @default(now())
+  @@index([email,createdAt])
 }

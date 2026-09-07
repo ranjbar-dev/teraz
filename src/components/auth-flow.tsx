@@ -7,7 +7,13 @@ import { Logo } from './icons';
 export function AuthFlow({
   mode,
 }: {
-  mode: 'login' | 'register' | 'forgot-password' | 'reset-password' | 'accept-invitation';
+  mode:
+    | 'login'
+    | 'register'
+    | 'forgot-password'
+    | 'reset-password'
+    | 'accept-invitation'
+    | 'verify-email';
 }) {
   const router = useRouter();
   const [values, setValues] = useState<Record<string, string>>({});
@@ -25,6 +31,7 @@ export function AuthFlow({
     'forgot-password': 'بازیابی دسترسی',
     'reset-password': 'رمز تازه، شروع دوباره',
     'accept-invitation': 'پیوستن به سازمان',
+    'verify-email': 'تأیید نشانی ایمیل',
   };
   const fields: { key: string; label: string; type?: string; min?: number; pattern?: string }[] =
     mode === 'register'
@@ -57,6 +64,7 @@ export function AuthFlow({
         'forgot-password': 'auth/forgot',
         'reset-password': 'auth/reset',
         'accept-invitation': 'invitations/accept',
+        'verify-email': 'auth/verify-email',
       }[mode];
       const res = await fetch('/api/' + endpoint, {
         method: 'POST',
@@ -65,6 +73,10 @@ export function AuthFlow({
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
+      if (mode === 'verify-email') {
+        setMessage('ایمیل شما تأیید شد. می‌توانید به حساب برگردید.');
+        return;
+      }
       if (mode === 'forgot-password') {
         setMessage(result.message);
         return;

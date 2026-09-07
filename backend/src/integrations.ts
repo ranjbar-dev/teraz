@@ -1,3 +1,4 @@
+import { localMode, requireLocalMode } from './local-mode';
 import {
   randomBytes,
   sign,
@@ -188,9 +189,13 @@ export class IntegrationService {
   }
   async configure(p: Principal, s: Scope, provider: string, input: any) {
     requirePermission(p, 'integrations.write');
-    if (!['smsir', 'modian'].includes(provider) || !['dry-run', 'sandbox'].includes(input.mode))
+    if (
+      !['smsir', 'modian'].includes(provider) ||
+      !['dry-run', 'sandbox', 'local'].includes(input.mode)
+    )
       throw new ApiError('ارائه‌دهنده یا محیط معتبر نیست.', 422);
-    if (provider === 'smsir' && input.mode !== 'dry-run')
+    if (input.mode === 'local') requireLocalMode();
+    if (provider === 'smsir' && input.mode === 'sandbox')
       throw new ApiError(
         'sms.ir محیط sandbox اختصاصی تأییدشده ندارد؛ پیش‌نمایش محلی فعال است.',
         422,
@@ -333,7 +338,45 @@ export class IntegrationService {
       if (!cfg?.enabled) throw new ApiError('ابتدا اتصال را تنظیم و فعال کنید.', 422);
       const config = decrypt(cfg.encryptedConfig);
       let payload: any, recordId: string | undefined;
-      if (provider === 'modian') {
+      if (cfg.mode === 'local') {
+        requireLocalMode();
+        const scenario = input.scenario || 'success';
+        if (!['success', 'reject', 'retry', 'timeout'].includes(scenario))
+          throw new ApiError('سناریوی آزمایشی معتبر نیست.', 422);
+        if (provider === 'modian') {
+          const record = await tx.record.findFirst({
+            where: {
+              id: String(input.recordId || ''),
+              companyId: s.companyId,
+              module: { in: ['sales', 'sales-returns'] },
+              postedAt: { not: null },
+              reversedAt: null,
+            },
+            include: { lines: true },
+          });
+          if (!record) throw new ApiError('فاکتور قطعی معتبر انتخاب کنید.', 422);
+          recordId = record.id;
+          payload = {
+            mode: 'local',
+            scenario,
+            invoice: {
+              code: record.code,
+              date: record.date,
+              total: money(record.total),
+              data: record.data,
+              lines: record.lines,
+            },
+          };
+        } else {
+          if (
+            !/^09\d{9}$/.test(String(input.mobile || '')) ||
+            !String(input.message || '').trim() ||
+            String(input.message).length > 1000
+          )
+            throw new ApiError('شماره همراه و متن پیام معتبر نیست.', 422);
+          payload = { mode: 'local', scenario, mobile: input.mobile, message: input.message };
+        }
+      } else if (provider === 'modian') {
         const invoice = await this.invoice(tx, s, input, config);
         recordId = invoice.record.id;
         const exists = await tx.integrationJob.findFirst({
@@ -377,15 +420,28 @@ export class IntegrationService {
       return { id: job.id, status: job.status, mode: cfg.mode };
     });
   }
-  async retry(p: Principal, s: Scope, id: string) {
+  async retry(p: Principal, s: Scope, id: string, input: any = {}) {
     requirePermission(p, 'integrations.write');
     const job = await db.integrationJob.findFirst({ where: { id, companyId: s.companyId } });
-    if (!job || !['FAILED', 'REVIEW_REQUIRED'].includes(job.status))
+    if (!job || !['FAILED', 'REVIEW_REQUIRED', 'LOCAL_FAILED'].includes(job.status))
       throw new ApiError('این درخواست قابل تلاش مجدد نیست.', 422);
     await requireSubscription(db, p);
+    const payload = job.payload as any;
+    if (payload.mode === 'local') {
+      requireLocalMode();
+      if (input.scenario && !['success', 'reject', 'retry', 'timeout'].includes(input.scenario))
+        throw new ApiError('سناریو معتبر نیست.', 422);
+    }
     await db.integrationJob.update({
       where: { id },
-      data: { status: 'PENDING', attempts: 0, nextAttemptAt: new Date() },
+      data: {
+        status: 'PENDING',
+        attempts: 0,
+        nextAttemptAt: new Date(),
+        ...(payload.mode === 'local'
+          ? { payload: json({ ...payload, scenario: input.scenario || 'success' }) }
+          : {}),
+      },
     });
     return { ok: true };
   }
@@ -408,6 +464,36 @@ export async function processJob() {
       }),
       payload = claimed.payload as any;
     if (!cfg?.enabled) throw new ApiError('اتصال غیرفعال است.', 422);
+    if (payload.mode === 'local') {
+      requireLocalMode();
+      const waiting =
+        (payload.scenario === 'retry' && claimed.attempts < 2) ||
+        (payload.scenario === 'timeout' && claimed.attempts < 3);
+      await db.integrationJob.update({
+        where: { id: claimed.id },
+        data: {
+          status: waiting
+            ? 'RETRY'
+            : payload.scenario === 'timeout'
+              ? 'REVIEW_REQUIRED'
+              : payload.scenario === 'reject'
+                ? 'LOCAL_FAILED'
+                : 'LOCAL_SUCCESS',
+          lockedAt: null,
+          nextAttemptAt: new Date(Date.now() + 2000),
+          result: {
+            mode: 'local',
+            scenario: payload.scenario,
+            attempt: claimed.attempts,
+            message: waiting
+              ? 'خطای موقت شبیه‌سازی شد؛ تلاش بعدی در صف است.'
+              : 'نتیجهٔ شبیه‌ساز محلی؛ هیچ درخواست بیرونی ارسال نشده است.',
+            preview: payload,
+          },
+        },
+      });
+      return true;
+    }
     if (payload.mode === 'dry-run') {
       await db.integrationJob.update({
         where: { id: claimed.id },

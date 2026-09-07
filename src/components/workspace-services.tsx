@@ -48,6 +48,19 @@ export function WorkspaceServices({ section }: { section: string }) {
     setCreating(false);
     void refresh();
   }, [api, section]);
+  useEffect(() => {
+    if (
+      section !== 'integrations' ||
+      !data?.jobs?.some((job: Item) =>
+        ['PENDING', 'PROCESSING', 'RETRY', 'RECEIVED'].includes(job.status),
+      )
+    )
+      return;
+    const timer = setTimeout(() => {
+      void refresh();
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [section, data, api]);
   const set = (k: string, v: any) => setForm((f) => ({ ...f, [k]: v }));
   async function send(path: string, method: string, input: unknown, after?: () => void) {
     setBusy(true);
@@ -148,7 +161,9 @@ export function WorkspaceServices({ section }: { section: string }) {
             ))}
           </div>
           <p className="muted">
-            پرداخت در sandbox زرین‌پال انجام می‌شود و مبلغ واقعی از حساب شما برداشت نمی‌شود.
+            {data.mode === 'local'
+              ? 'پرداخت در شبیه‌ساز همین دستگاه انجام می‌شود؛ نتیجهٔ موفق، ناموفق یا انصراف را خودتان انتخاب می‌کنید.'
+              : 'پرداخت در sandbox زرین‌پال انجام می‌شود و مبلغ واقعی برداشت نمی‌شود.'}
           </p>
           <SmartTable
             title="سوابق پرداخت اشتراک"
@@ -178,6 +193,21 @@ export function WorkspaceServices({ section }: { section: string }) {
           <section className="panel form-panel">
             <h2>{data.user.name}</h2>
             <p dir="ltr">{data.user.email}</p>
+            <p>
+              {data.user.emailVerifiedAt ? 'ایمیل تأیید شده است.' : 'ایمیل هنوز تأیید نشده است.'}
+            </p>
+            {!data.user.emailVerifiedAt && (
+              <button
+                className="btn"
+                disabled={busy}
+                onClick={() => send('auth/request-verification', 'POST', {})}
+              >
+                ساخت پیوند تأیید ایمیل
+              </button>
+            )}
+            <Link className="btn" href="/local-lab">
+              صندوق ایمیل آزمایشی
+            </Link>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -476,9 +506,13 @@ export function WorkspaceServices({ section }: { section: string }) {
                     form.provider === 'modian'
                       ? [
                           { value: 'dry-run', label: 'پیش‌نمایش محلی' },
+                          { value: 'local', label: 'شبیه‌ساز کامل محلی' },
                           { value: 'sandbox', label: 'سامانهٔ آزمایشی رسمی' },
                         ]
-                      : [{ value: 'dry-run', label: 'پیش‌نمایش محلی' }]
+                      : [
+                          { value: 'dry-run', label: 'پیش‌نمایش محلی' },
+                          { value: 'local', label: 'شبیه‌ساز کامل محلی' },
+                        ]
                   }
                 />
                 <Input
@@ -546,6 +580,7 @@ export function WorkspaceServices({ section }: { section: string }) {
                   recordId: form.recordId,
                   taxId: form.taxId,
                   serial: form.serial,
+                  scenario: form.scenario,
                 });
               }}
             >
@@ -566,8 +601,27 @@ export function WorkspaceServices({ section }: { section: string }) {
                 name="taxId"
                 value={form.taxId}
                 onChange={set}
+                required={data.configs.find((c: Item) => c.provider === 'modian')?.mode !== 'local'}
               />
-              <Input label="سریال مالیاتی" name="serial" value={form.serial} onChange={set} />
+              <Input
+                label="سریال مالیاتی"
+                name="serial"
+                value={form.serial}
+                onChange={set}
+                required={data.configs.find((c: Item) => c.provider === 'modian')?.mode !== 'local'}
+              />
+              <Input
+                label="نتیجهٔ شبیه‌ساز محلی"
+                name="scenario"
+                value={form.scenario || 'success'}
+                onChange={set}
+                options={[
+                  { value: 'success', label: 'موفق' },
+                  { value: 'reject', label: 'رد درخواست' },
+                  { value: 'retry', label: 'خطای موقت و سپس موفق' },
+                  { value: 'timeout', label: 'بی‌پاسخ و نیازمند بررسی' },
+                ]}
+              />
               <button className="btn btn-primary" disabled={busy}>
                 قرار دادن در صف
               </button>
@@ -579,10 +633,23 @@ export function WorkspaceServices({ section }: { section: string }) {
                 void send('integrations/smsir', 'POST', {
                   mobile: form.mobile,
                   message: form.message,
+                  scenario: form.smsScenario,
                 });
               }}
             >
               <h2>پیش‌نمایش پیامک</h2>
+              <Input
+                label="نتیجهٔ شبیه‌ساز پیامک"
+                name="smsScenario"
+                value={form.smsScenario || 'success'}
+                onChange={set}
+                options={[
+                  { value: 'success', label: 'موفق' },
+                  { value: 'reject', label: 'رد درخواست' },
+                  { value: 'retry', label: 'خطای موقت و سپس موفق' },
+                  { value: 'timeout', label: 'بی‌پاسخ و نیازمند بررسی' },
+                ]}
+              />
               <Input label="شماره همراه" name="mobile" value={form.mobile} onChange={set} />
               <Input
                 label="متن پیام"
@@ -631,7 +698,7 @@ export function WorkspaceServices({ section }: { section: string }) {
               },
             ]}
             action={(r) =>
-              ['FAILED', 'REVIEW_REQUIRED'].includes(r.status) ? (
+              ['FAILED', 'REVIEW_REQUIRED', 'LOCAL_FAILED'].includes(r.status) ? (
                 <button
                   disabled={busy}
                   className="btn btn-small"

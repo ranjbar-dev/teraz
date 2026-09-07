@@ -27,6 +27,7 @@ import {
 } from './core';
 import { AccountingService, invoiceTotal, openYear } from './accounting';
 import { createCompany } from './provision';
+import { recordIds } from './record-query';
 const postedStatus = (key: string, status: string) =>
   !masters.has(key) &&
   key !== 'quotes' &&
@@ -66,46 +67,69 @@ export class RecordsService {
       };
     }
     if (key === 'users') return { rows: await this.users(p) };
+    const result = await recordIds(s, key, q);
     const all = await db.record.findMany({
-      where: recordWhere(s, key),
+      where: { ...recordWhere(s, key), id: { in: result.ids } },
       include: { lines: { orderBy: { position: 'asc' } } },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
-    let rows = await Promise.all(all.map((r) => this.decorate(s, r)));
-    const search = normalize(q.q || '');
-    const filters = q.filters ? JSON.parse(String(q.filters)) : {};
-    const lookup = await db.record.findMany({
-      where: { companyId: s.companyId },
-      select: { id: true, name: true, code: true },
-    });
-    const labels = new Map(lookup.map((r) => [r.id, `${r.name} ${r.code}`]));
-    const text = (value: unknown) => normalize(`${value ?? ''} ${labels.get(String(value)) || ''}`);
-    rows = rows.filter(
-      (r) =>
-        (!search || Object.values(r).some((v) => text(v).includes(search))) &&
-        Object.entries(filters).every(
-          ([key, value]) => !value || text((r as any)[key]).includes(normalize(value)),
-        ),
-    );
-    if (q.status && q.status !== 'all') rows = rows.filter((r) => r.status === q.status);
-    if (q.sort) {
-      const desc = String(q.sort).startsWith('-'),
-        k = String(q.sort).replace(/^-/, '');
-      rows.sort(
-        (a, b) =>
-          text((a as any)[k]).localeCompare(text((b as any)[k]), 'fa', { numeric: true }) *
-          (desc ? -1 : 1),
-      );
-    }
-    const totalCount = rows.length;
-    const limit = Math.min(100, Math.max(1, Number(q.limit) || 25)),
-      page = Math.max(1, Number(q.page) || 1);
+    const decorated = await this.decorateMany(s, all);
+    const byId = new Map(decorated.map((r) => [r.id, r]));
     return {
-      rows: q.limit ? rows.slice((page - 1) * limit, page * limit) : rows,
-      totalCount,
-      page,
-      limit,
+      rows: result.ids.map((id) => byId.get(id)).filter(Boolean),
+      totalCount: result.totalCount,
+      page: result.page,
+      limit: result.limit,
+      summary: result.summary,
     };
+  }
+  async decorateMany(s: Scope, records: any[]) {
+    const ids = records.map((r) => r.id);
+    const modulesPresent = new Set(records.map((r) => r.module));
+    const [allocations, banks, depreciation] = await Promise.all([
+      ['sales', 'purchases'].some((m) => modulesPresent.has(m))
+        ? db.allocation.groupBy({
+            by: ['invoiceId'],
+            where: { companyId: s.companyId, invoiceId: { in: ids }, active: true },
+            _sum: { amount: true },
+          })
+        : [],
+      modulesPresent.has('banks')
+        ? db.journalLine.groupBy({
+            by: ['bankId'],
+            where: { bankId: { in: ids }, journal: { companyId: s.companyId } },
+            _sum: { foreignAmount: true },
+          })
+        : [],
+      modulesPresent.has('assets')
+        ? db.record.findMany({
+            where: {
+              companyId: s.companyId,
+              module: 'depreciation',
+              postedAt: { not: null },
+              reversedAt: null,
+            },
+            select: { data: true, total: true },
+          })
+        : [],
+    ]);
+    const paid = new Map(allocations.map((r) => [r.invoiceId, r._sum.amount || 0]));
+    const balances = new Map(banks.map((r) => [r.bankId, r._sum.foreignAmount || 0]));
+    const dep = new Map<string, ReturnType<typeof D>>();
+    for (const r of depreciation) {
+      const id = (r.data as any).assetId;
+      dep.set(id, (dep.get(id) || D(0)).add(r.total));
+    }
+    return records.map((r) => {
+      const out = serializeRecord(r);
+      if (['sales', 'purchases'].includes(r.module)) {
+        out.paid = money(paid.get(r.id) || 0);
+        out.remaining = money(D(r.total).sub(out.paid));
+      }
+      if (r.module === 'banks') out.balance = money(balances.get(r.id) || 0);
+      if (r.module === 'assets') out.bookValue = money(D(r.data.cost).sub(dep.get(r.id) || 0));
+      return out;
+    });
   }
   async get(p: Principal, s: Scope, key: string, id: string) {
     if (['companies', 'users'].includes(key)) {
@@ -114,6 +138,8 @@ export class RecordsService {
       return r;
     }
     requirePermission(p, `${key}.read`);
+    if (moduleOf(key).admin && !['OWNER', 'ADMIN'].includes(p.role))
+      throw new ApiError('این بخش برای مدیر سازمان است.', 403);
     const r = await db.record.findFirst({
       where: { ...recordWhere(s, key), id },
       include: { lines: { orderBy: { position: 'asc' } } },

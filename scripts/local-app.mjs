@@ -14,12 +14,29 @@ const alive = (pid) => {
     return false;
   }
 };
+const owned = (record, name) => {
+  if (!record || !alive(record.pid)) return false;
+  const expected =
+    name === 'api'
+      ? path.join(root, 'backend/dist/main.js')
+      : path.join(root, 'node_modules/next/dist/bin/next');
+  const result = spawnSync(
+    'powershell.exe',
+    [
+      '-NoProfile',
+      '-Command',
+      `$p=Get-CimInstance Win32_Process -Filter 'ProcessId = ${Number(record.pid)}'; if ($p -and $p.Name -eq 'node.exe' -and $p.CommandLine.Contains('${expected.replaceAll("'", "''")}')) { Write-Output 'owned' }`,
+    ],
+    { windowsHide: true, encoding: 'utf8' },
+  );
+  return result.stdout?.trim() === 'owned';
+};
 if (cmd === 'status') {
   console.log(
     Object.fromEntries(
       Object.entries(existing).map(([k, v]) => [
         k,
-        { pid: v.pid, running: alive(v.pid), url: v.url },
+        { pid: v.pid, running: owned(v, k), url: v.url },
       ]),
     ),
   );
@@ -54,10 +71,11 @@ for (const [name, args, cwd, url] of [
     'http://localhost:3000',
   ],
 ]) {
-  if (existing[name] && alive(existing[name].pid)) {
+  if (existing[name] && owned(existing[name], name)) {
     console.log(name + ' already running: ' + existing[name].url);
     continue;
   }
+  delete existing[name];
   try {
     const response = await fetch(url + (name === 'api' ? '/api/health' : '/login'), {
       signal: AbortSignal.timeout(2000),

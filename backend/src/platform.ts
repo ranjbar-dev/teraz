@@ -13,6 +13,7 @@ import {
   json,
 } from './core';
 import { createOrganization } from './provision';
+import { localMode, requireLocalMode } from './local-mode';
 const planInput = z.object({
   name: z.string().trim().min(2).max(100),
   price: z
@@ -219,7 +220,13 @@ export class BillingService {
         throw new ApiError('ارتباط با زرین‌پال آزمایشی ناموفق بود.', 502, 'PAYMENT_PROVIDER_ERROR');
       return body;
     },
-  ) {}
+  ) {
+    this.transportOverride = arguments.length > 0;
+  }
+  private useLocal() {
+    return !this.transportOverride && localMode() && process.env.PAYMENT_MODE !== 'sandbox';
+  }
+  private transportOverride = false;
   async plans() {
     return db.plan.findMany({ where: { active: true }, orderBy: { price: 'asc' } });
   }
@@ -237,7 +244,7 @@ export class BillingService {
         orderBy: { createdAt: 'desc' },
         take: 100,
       }),
-      mode: 'sandbox',
+      mode: this.useLocal() ? 'local' : 'sandbox',
     };
   }
   async checkout(p: Principal, input: any) {
@@ -254,9 +261,17 @@ export class BillingService {
         planId: plan.id,
         amount: plan.price,
         durationDays: plan.durationDays,
-        mode: 'sandbox',
+        mode: this.useLocal() ? 'local' : 'sandbox',
       },
     });
+    if (payment.mode === 'local') {
+      requireLocalMode();
+      await db.billingPayment.update({
+        where: { id: payment.id },
+        data: { authority: 'LOCAL' + randomBytes(20).toString('hex') },
+      });
+      return { paymentId: payment.id, url: `/test-payment?id=${payment.id}`, mode: 'local' };
+    }
     try {
       const response = await this.transport('request', {
         merchant_id: this.merchant(),
@@ -289,11 +304,47 @@ export class BillingService {
       throw new ApiError('شناسهٔ آزمایشی زرین‌پال معتبر نیست.', 503);
     return id;
   }
+  async localPayment(p: Principal, id: string) {
+    requireLocalMode();
+    requirePermission(p, 'subscription.write');
+    const payment = await db.billingPayment.findFirst({
+      where: { id, organizationId: p.organizationId!, mode: 'local' },
+      include: { plan: true },
+    });
+    if (!payment) throw new ApiError('پرداخت محلی یافت نشد.', 404);
+    return { payment, mode: 'local' };
+  }
+  async localDecision(p: Principal, id: string, input: any) {
+    const { payment } = await this.localPayment(p, id);
+    if (!['success', 'failure', 'cancel'].includes(input.outcome))
+      throw new ApiError('نتیجهٔ آزمایش معتبر نیست.', 422);
+    if (input.outcome === 'success') return this.settle(payment, 'LOCAL-' + payment.id, true);
+    return transaction(`org:${payment.organizationId}`, async (tx) => {
+      const current = await tx.billingPayment.findUniqueOrThrow({ where: { id } });
+      if (current.status !== 'PENDING')
+        throw new ApiError('نتیجهٔ این پرداخت قبلاً ثبت شده است.', 409);
+      await tx.billingPayment.update({
+        where: { id },
+        data: { status: input.outcome === 'cancel' ? 'CANCELLED' : 'FAILED' },
+      });
+      await audit(
+        tx,
+        p,
+        'subscription.local-payment',
+        'نتیجهٔ ناموفق آزمایش محلی ثبت شد',
+        undefined,
+        id,
+      );
+      return { ok: false, mode: 'local' };
+    });
+  }
   async verify(authority: string, status: string) {
     if (!/^S[a-zA-Z0-9]{10,100}$/.test(authority))
       throw new ApiError('شناسهٔ پرداخت معتبر نیست.', 422);
     const payment = await db.billingPayment.findUnique({ where: { authority } });
     if (!payment) throw new ApiError('پرداخت یافت نشد.', 404);
+    if (payment.mode !== 'sandbox')
+      throw new ApiError('این پرداخت متعلق به درگاه بیرونی نیست.', 422);
     if (payment.status === 'VERIFIED') return { ok: true, reference: payment.reference };
     if (status !== 'OK') return { ok: false };
     const response = await this.transport('verify', {
@@ -303,9 +354,24 @@ export class BillingService {
     });
     if (![100, 101].includes(response.data?.code) || !response.data?.ref_id)
       throw new ApiError('پرداخت توسط درگاه تأیید نشد.', 422, 'PAYMENT_NOT_VERIFIED');
+    return this.settle(payment, String(response.data.ref_id), false);
+  }
+  private async settle(
+    payment: {
+      id: string;
+      organizationId: string;
+      planId: string;
+      durationDays: number;
+      amount: any;
+    },
+    reference: string,
+    local: boolean,
+  ) {
     return transaction(`org:${payment.organizationId}`, async (tx) => {
       const current = await tx.billingPayment.findUniqueOrThrow({ where: { id: payment.id } });
       if (current.status === 'VERIFIED') return { ok: true, reference: current.reference };
+      if (current.status !== 'PENDING')
+        throw new ApiError('پرداخت بسته شده است؛ درخواست تازه بسازید.', 409);
       const subscription = await tx.subscription.findUnique({
         where: { organizationId: payment.organizationId },
       });
@@ -322,7 +388,6 @@ export class BillingService {
         },
         update: { planId: payment.planId, status: 'ACTIVE', endsAt },
       });
-      const reference = String(response.data.ref_id);
       await tx.billingPayment.update({
         where: { id: payment.id },
         data: { status: 'VERIFIED', reference, verifiedAt: new Date() },
@@ -331,10 +396,12 @@ export class BillingService {
         data: {
           organizationId: payment.organizationId,
           userId: 'system',
-          userName: 'زرین‌پال آزمایشی',
+          userName: local ? 'شبیه‌ساز محلی پرداخت' : 'زرین‌پال آزمایشی',
           action: 'subscription.payment',
           targetId: payment.id,
-          message: 'پرداخت آزمایشی تأیید و اشتراک تمدید شد',
+          message: local
+            ? 'سناریوی موفق محلی اجرا و اشتراک تمدید شد؛ تراکنش بانکی رخ نداد'
+            : 'پرداخت آزمایشی تأیید و اشتراک تمدید شد',
           after: json({ reference, amount: money(payment.amount), endsAt }),
         },
       });

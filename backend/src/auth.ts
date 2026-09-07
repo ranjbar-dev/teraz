@@ -142,6 +142,7 @@ export class AuthService {
     };
   }
   async me(p: Principal) {
+    const account = await db.user.findUniqueOrThrow({ where: { id: p.userId } });
     return {
       user: {
         id: p.userId,
@@ -149,6 +150,7 @@ export class AuthService {
         email: p.email,
         role: roleLabel(p.role),
         superAdmin: p.superAdmin,
+        emailVerifiedAt: account.emailVerifiedAt,
       },
       organizationId: p.organizationId,
       organizations: await db.membership.findMany({

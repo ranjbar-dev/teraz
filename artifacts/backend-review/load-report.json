@@ -1,0 +1,11 @@
+{
+  "records": 5000,
+  "concurrency": 10,
+  "requests": 20,
+  "pageSize": 25,
+  "p50Ms": 199,
+  "p95Ms": 269,
+  "maxResponseBytes": 10406,
+  "generatedAt": "2026-09-07T09:52:25.370Z",
+  "scope": "Isolated database; list/search benchmark only, not a production capacity certification"
+}

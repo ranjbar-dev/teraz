@@ -37,6 +37,8 @@ const env = {
   SUPER_ADMIN_EMAIL: 'owner@test.taraz.local',
   SUPER_ADMIN_PASSWORD: randomBytes(24).toString('base64url'),
   ENCRYPTION_KEY: randomBytes(32).toString('hex'),
+  LOCAL_SANDBOX: 'true',
+  PAYMENT_MODE: 'local',
 };
 const run = (args) =>
   new Promise((resolve, reject) => {
@@ -64,12 +66,21 @@ try {
       fs.openSync(path.join(root, '.runtime/test-api.log'), 'a'),
     ],
   });
-  for (let i = 0; i < 30; i++) {
+  let ready = false;
+  for (let i = 0; i < 90; i++) {
+    if (server.exitCode !== null)
+      throw new Error('Test API exited before readiness; inspect .runtime/test-api.log');
     try {
-      if ((await fetch('http://127.0.0.1:4001/api/health')).ok) break;
+      if (
+        (await fetch('http://127.0.0.1:4001/api/health', { signal: AbortSignal.timeout(2000) })).ok
+      ) {
+        ready = true;
+        break;
+      }
     } catch {}
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 500));
   }
+  if (!ready) throw new Error('Test API did not become ready; inspect .runtime/test-api.log');
   await run(['node_modules/tsx/dist/cli.mjs', '--test', 'tests/accounting.test.ts']);
   if (process.argv.includes('--browser')) await run(['../tests/backend-browser.mjs']);
 } finally {

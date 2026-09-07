@@ -13,6 +13,7 @@ import {
   audit,
 } from './core';
 import { AuthService } from './auth';
+import { requireLocalMode } from './local-mode';
 export async function localNotification(email: string, kind: string, token: string) {
   if (process.env.NODE_ENV === 'production')
     throw new ApiError(
@@ -23,6 +24,7 @@ export async function localNotification(email: string, kind: string, token: stri
   const dir = path.resolve(__dirname, '../../.runtime/mail');
   await mkdir(dir, { recursive: true });
   const url = `${process.env.WEB_ORIGIN}/${kind}?token=${token}`;
+  await db.localMail.create({ data: { email, kind, url } });
   await writeFile(
     path.join(dir, `${Date.now()}-${randomBytes(4).toString('hex')}.json`),
     JSON.stringify({ to: email, kind, url, mode: 'local-outbox' }, null, 2),
@@ -30,6 +32,52 @@ export async function localNotification(email: string, kind: string, token: stri
   );
 }
 export class IdentityService {
+  async inbox(p: Principal) {
+    requireLocalMode();
+    return {
+      mode: 'local',
+      superAdmin: p.superAdmin,
+      rows: await db.localMail.findMany({
+        where: p.superAdmin ? {} : { email: p.email },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
+    };
+  }
+  async requestVerification(p: Principal) {
+    await new AuthService().rateLimit('verify-email:' + p.userId, 5, 3600);
+    const user = await db.user.findUniqueOrThrow({ where: { id: p.userId } });
+    if (user.emailVerifiedAt) return { ok: true, verified: true };
+    const token = randomBytes(32).toString('base64url');
+    await db.emailVerification.create({
+      data: {
+        userId: p.userId,
+        email: user.email,
+        tokenHash: hash(token),
+        expiresAt: new Date(Date.now() + 3600000),
+      },
+    });
+    await localNotification(user.email, 'verify-email', token);
+    return { ok: true, verified: false, mode: 'local-outbox' };
+  }
+  async verifyEmail(input: any, ip: string) {
+    await new AuthService().rateLimit('verify-token:' + ip, 20, 900);
+    return transaction('verify-email:' + hash(String(input.token)), async (tx) => {
+      const record = await tx.emailVerification.findUnique({
+        where: { tokenHash: hash(String(input.token || '')) },
+      });
+      if (!record || record.usedAt || record.expiresAt < new Date())
+        throw new ApiError('پیوند تأیید نامعتبر یا منقضی است.', 422);
+      const user = await tx.user.findUniqueOrThrow({ where: { id: record.userId } });
+      if (user.email !== record.email) throw new ApiError('ایمیل حساب تغییر کرده است.', 422);
+      await tx.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
+      await tx.emailVerification.updateMany({
+        where: { userId: user.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      return { ok: true };
+    });
+  }
   async forgot(input: any, ip: string) {
     await new AuthService().rateLimit('forgot:' + ip, 6, 3600);
     const user = await db.user.findUnique({

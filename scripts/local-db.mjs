@@ -142,7 +142,7 @@ if (command === 'setup') {
   if (!(await exists(envFile)))
     await fs.writeFile(
       envFile,
-      `DATABASE_URL=postgresql://taraz_app:${credentials.appPassword}@127.0.0.1:55432/taraz\nAPI_PORT=4000\nWEB_ORIGIN=http://localhost:3000\nENCRYPTION_KEY=${credentials.encryptionKey}\nSUPER_ADMIN_EMAIL=${credentials.adminEmail}\nSUPER_ADMIN_PASSWORD=${credentials.adminPassword}\nINTEGRATION_MODE=sandbox\n`,
+      `DATABASE_URL=postgresql://taraz_app:${credentials.appPassword}@127.0.0.1:55432/taraz\nAPI_PORT=4000\nWEB_ORIGIN=http://localhost:3000\nENCRYPTION_KEY=${credentials.encryptionKey}\nSUPER_ADMIN_EMAIL=${credentials.adminEmail}\nSUPER_ADMIN_PASSWORD=${credentials.adminPassword}\nLOCAL_SANDBOX=true\nPAYMENT_MODE=local\n`,
     );
   console.log(
     'Database ready. Local owner credentials: .runtime/local-credentials.json (excluded from Git).',

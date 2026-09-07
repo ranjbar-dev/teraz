@@ -81,6 +81,8 @@ class ApiController {
         return res.json(await this.identity.forgot(input, req.ip || 'unknown'));
       if (key === 'auth' && id === 'reset' && method === 'POST')
         return res.json(await this.identity.reset(input, req.ip || 'unknown'));
+      if (key === 'auth' && id === 'verify-email' && method === 'POST')
+        return res.json(await this.identity.verifyEmail(input, req.ip || 'unknown'));
       if (key === 'billing' && id === 'callback' && method === 'GET') {
         await this.auth.rateLimit('callback:' + req.ip, 60, 60);
         try {
@@ -99,6 +101,13 @@ class ApiController {
         }
       }
       const p = await this.auth.principal(req);
+      if (key === 'local-mail' && method === 'GET') return res.json(await this.identity.inbox(p));
+      if (key === 'auth' && id === 'request-verification' && method === 'POST')
+        return res.json(await this.identity.requestVerification(p));
+      if (key === 'billing' && id === 'local' && action) {
+        if (method === 'GET') return res.json(await this.billing.localPayment(p, action));
+        if (method === 'POST') return res.json(await this.billing.localDecision(p, action, input));
+      }
       if (key === 'auth') {
         if (method === 'DELETE') {
           await this.auth.logout(p);
@@ -242,7 +251,7 @@ class ApiController {
         if (method === 'GET') return res.json(await this.integrations.list(p, s));
         if (method === 'PATCH') return res.json(await this.integrations.configure(p, s, id, input));
         if (method === 'POST' && action === 'retry')
-          return res.json(await this.integrations.retry(p, s, id));
+          return res.json(await this.integrations.retry(p, s, id, input));
         if (method === 'POST') return res.json(await this.integrations.enqueue(p, s, id, input));
       }
       if (key === 'attachments') {

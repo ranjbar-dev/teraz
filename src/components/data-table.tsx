@@ -27,8 +27,10 @@ export type Column = {
   text?: (row: TableRow) => string;
 };
 export const normalize = normalizeSearch;
+export type TableQuery = { q: string; filters: string; sort: string; page: number; limit: number };
+export type TableResult = { rows: TableRow[]; totalCount: number };
 export function DataTable({
-  rows,
+  rows: suppliedRows,
   columns,
   title = 'اطلاعات',
   onView,
@@ -36,6 +38,7 @@ export function DataTable({
   defaultPageSize = 8,
   toolbar,
   emptyAction,
+  load,
 }: {
   rows: TableRow[];
   columns: Column[];
@@ -45,6 +48,7 @@ export function DataTable({
   defaultPageSize?: number;
   toolbar?: React.ReactNode;
   emptyAction?: React.ReactNode;
+  load?: (q: TableQuery) => Promise<TableResult>;
 }) {
   const { fmt, date, notify, currency } = useApp();
   const [query, setQuery] = useState('');
@@ -57,6 +61,43 @@ export function DataTable({
   const [selected, setSelected] = useState<string[]>([]);
   const [exporting, setExporting] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [remote, setRemote] = useState<TableResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [printRows, setPrintRows] = useState<TableRow[] | null>(null);
+  const rows = load ? remote?.rows || suppliedRows : suppliedRows;
+  const tableQuery: TableQuery = {
+    q: query,
+    filters: JSON.stringify(filters),
+    sort: sort.key ? (sort.direction < 0 ? '-' : '') + sort.key : '',
+    page,
+    limit: pageSize,
+  };
+  const queryKey = JSON.stringify(tableQuery);
+  useEffect(() => {
+    if (!load) return;
+    let cancelled = false;
+    setLoading(true);
+    const timer = setTimeout(() => {
+      load(JSON.parse(queryKey))
+        .then((result) => {
+          if (!cancelled) {
+            setRemote(result);
+            setLoadError('');
+          }
+        })
+        .catch((e) => {
+          if (!cancelled) setLoadError(e.message);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    }, 180);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [load, queryKey]);
   const columnMenu = useRef<HTMLDivElement>(null);
   useEffect(() => {
     setSelected((current) => {
@@ -84,7 +125,10 @@ export function DataTable({
   }, [showColumns]);
   useEffect(() => {
     const before = () => flushSync(() => setPrinting(true));
-    const after = () => setPrinting(false);
+    const after = () => {
+      setPrinting(false);
+      setPrintRows(null);
+    };
     window.addEventListener('beforeprint', before);
     window.addEventListener('afterprint', after);
     return () => {
@@ -102,44 +146,60 @@ export function DataTable({
           : String(r[c.key] ?? '');
   const filtered = useMemo(
     () =>
-      rows
-        .filter(
-          (r) =>
-            (!query ||
-              columns.some(
-                (c) =>
-                  normalize(display(r, c)).includes(normalize(query)) ||
-                  normalize(r[c.key]).includes(normalize(query)),
-              )) &&
-            columns.every(
-              (c) =>
-                !filters[c.key] ||
-                normalize(display(r, c)).includes(normalize(filters[c.key])) ||
-                normalize(r[c.key]).includes(normalize(filters[c.key])),
-            ),
-        )
-        .sort((a, b) => {
-          if (!sort.key) return 0;
-          const col = columns.find((c) => c.key === sort.key)!;
-          return (
-            (typeof a[sort.key] === 'number' && typeof b[sort.key] === 'number'
-              ? Number(a[sort.key]) - Number(b[sort.key])
-              : display(a, col).localeCompare(display(b, col), 'fa', { numeric: true })) *
-            sort.direction
-          );
-        }),
-    [rows, columns, query, filters, sort, date, fmt],
+      load
+        ? rows
+        : rows
+            .filter(
+              (r) =>
+                (!query ||
+                  columns.some(
+                    (c) =>
+                      normalize(display(r, c)).includes(normalize(query)) ||
+                      normalize(r[c.key]).includes(normalize(query)),
+                  )) &&
+                columns.every(
+                  (c) =>
+                    !filters[c.key] ||
+                    normalize(display(r, c)).includes(normalize(filters[c.key])) ||
+                    normalize(r[c.key]).includes(normalize(filters[c.key])),
+                ),
+            )
+            .sort((a, b) => {
+              if (!sort.key) return 0;
+              const col = columns.find((c) => c.key === sort.key)!;
+              return (
+                (typeof a[sort.key] === 'number' && typeof b[sort.key] === 'number'
+                  ? Number(a[sort.key]) - Number(b[sort.key])
+                  : display(a, col).localeCompare(display(b, col), 'fa', { numeric: true })) *
+                sort.direction
+              );
+            }),
+    [rows, columns, query, filters, sort, date, fmt, load],
   );
   useEffect(() => {
     setPage(1);
     setSelected([]);
   }, [query, filters, pageSize]);
-  const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const totalCount = load ? remote?.totalCount || 0 : filtered.length;
+  const pages = Math.max(1, Math.ceil(totalCount / pageSize));
   const safePage = Math.min(page, pages);
-  const pageRows = printing
-    ? filtered
-    : filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const pageRows =
+    printing && printRows
+      ? printRows
+      : load
+        ? rows
+        : printing
+          ? filtered
+          : filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
   const cols = columns.filter((c) => visible.includes(c.key));
+  async function allResults() {
+    if (!load) return filtered;
+    const first = await load({ ...tableQuery, page: 1, limit: 100 });
+    const result = [...first.rows];
+    for (let page = 2; page <= Math.ceil(first.totalCount / 100); page++)
+      result.push(...(await load({ ...tableQuery, page, limit: 100 })).rows);
+    return result;
+  }
   async function exportFile() {
     setExporting(true);
     try {
@@ -149,7 +209,9 @@ export function DataTable({
         views: [{ rightToLeft: true }],
       });
       sheet.columns = cols.map((c) => ({ header: c.label, key: c.key, width: 24 }));
-      const list = selected.length ? filtered.filter((r) => selected.includes(r.id)) : filtered;
+      const list = selected.length
+        ? filtered.filter((r) => selected.includes(r.id))
+        : await allResults();
       list.forEach((r) =>
         sheet.addRow(
           Object.fromEntries(
@@ -196,6 +258,29 @@ export function DataTable({
           )}
         </div>
         <div className="table-tools">
+          {load && (
+            <button
+              className="btn btn-small"
+              disabled={loading || exporting || !totalCount}
+              onClick={async () => {
+                setExporting(true);
+                try {
+                  const result = await allResults();
+                  flushSync(() => {
+                    setPrintRows(result);
+                    setPrinting(true);
+                  });
+                  window.print();
+                } catch {
+                  notify('آماده‌کردن چاپ ناموفق بود.', true);
+                } finally {
+                  setExporting(false);
+                }
+              }}
+            >
+              چاپ همهٔ نتایج
+            </button>
+          )}
           {toolbar}
           {Object.values(filters).some(Boolean) && (
             <button className="text-button" onClick={() => setFilters({})}>
@@ -240,7 +325,7 @@ export function DataTable({
           </div>
           <button
             className="btn btn-small"
-            disabled={exporting || !filtered.length}
+            disabled={exporting || loading || !totalCount}
             onClick={exportFile}
           >
             <Download size={15} />
@@ -272,7 +357,17 @@ export function DataTable({
             ))}
         </div>
       )}
-      <div className="table-scroll">
+      {loadError && (
+        <div className="form-error" role="alert">
+          {loadError}
+        </div>
+      )}
+      {loading && (
+        <div className="field-help" role="status">
+          در حال دریافت نتایج…
+        </div>
+      )}
+      <div className="table-scroll" aria-busy={loading}>
         <table>
           <thead>
             <tr>
@@ -440,8 +535,8 @@ export function DataTable({
       </div>
       <div className="table-footer">
         <span>
-          {filtered.length
-            ? `${fmt((safePage - 1) * pageSize + 1)} تا ${fmt(Math.min(safePage * pageSize, filtered.length))} از ${fmt(filtered.length)} مورد`
+          {totalCount
+            ? `${fmt((safePage - 1) * pageSize + 1)} تا ${fmt(Math.min(safePage * pageSize, totalCount))} از ${fmt(totalCount)} مورد`
             : '۰ مورد'}
           {selected.length > 0 && (
             <button className="text-button" onClick={() => setSelected([])}>

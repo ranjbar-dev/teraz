@@ -85,6 +85,9 @@ export function Platform() {
           ))}
         </nav>
         <div className="platform-nav-foot">
+          <a className="btn" href="/local-lab">
+            صندوق ایمیل آزمایشی
+          </a>
           <span className="live-dot" /> محیط محلی · پرداخت آزمایشی
         </div>
         <button
