@@ -1,4 +1,5 @@
 'use client';
+import { TourCatalog } from './guided-tour';
 import { SearchSelect } from './search-select';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -299,6 +300,7 @@ export function Help() {
         title="راهنما و شروع سریع"
         description="هر چیزی که برای اولین ثبت و آزمایش امکانات نیاز دارید."
       />
+      <TourCatalog />
       <div className="help-hero">
         <BookOpen size={32} />
         <h2>حسابداری، یک قدم ساده‌تر.</h2>

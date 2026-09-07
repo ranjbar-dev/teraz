@@ -32,6 +32,28 @@ export async function localNotification(email: string, kind: string, token: stri
   );
 }
 export class IdentityService {
+  async tour(p: Principal, seen = false) {
+    if (p.organizationId) {
+      const where = {
+        organizationId_userId: { organizationId: p.organizationId, userId: p.userId },
+      };
+      const membership = await db.membership.findUnique({ where });
+      if (!membership?.active) throw new ApiError('عضویت فعال لازم است.', 403);
+      if (seen && !membership.tourSeenAt)
+        await db.membership.updateMany({
+          where: { id: membership.id, tourSeenAt: null },
+          data: { tourSeenAt: new Date() },
+        });
+      return { seen: seen || !!membership.tourSeenAt };
+    }
+    const user = await db.user.findUniqueOrThrow({ where: { id: p.userId } });
+    if (seen && !user.tourSeenAt)
+      await db.user.updateMany({
+        where: { id: p.userId, tourSeenAt: null },
+        data: { tourSeenAt: new Date() },
+      });
+    return { seen: seen || !!user.tourSeenAt };
+  }
   async inbox(p: Principal) {
     requireLocalMode();
     return {

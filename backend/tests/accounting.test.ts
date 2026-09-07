@@ -53,6 +53,36 @@ test('real PostgreSQL + HTTP accounting and SaaS workflows', async (t) => {
   let boot = (await call(c, 'bootstrap')).data;
   c.scope = { companyId: boot.scope.companyId, branchId: 'all', yearId: boot.scope.yearId };
   const date = boot.years[0].startDate;
+  await t.test('onboarding persists per membership and never trusts a supplied user', async () => {
+    await call(empty, 'onboarding', 'GET', undefined, 401);
+    assert.equal((await call(c, 'onboarding')).data.seen, false);
+    await call(c, 'onboarding', 'PATCH', {}, 403, { origin: 'https://evil.invalid' });
+    assert.equal((await call(c, 'onboarding')).data.seen, false);
+    await call(c, 'onboarding', 'PATCH', { userId: 'ignored', organizationId: 'ignored' });
+    assert.equal((await call(c, 'onboarding')).data.seen, true);
+    const membership = await db.membership.findUniqueOrThrow({
+      where: {
+        organizationId_userId: { userId: boot.user.id, organizationId: boot.organizationId },
+      },
+    });
+    await call(c, 'onboarding', 'PATCH', {});
+    const again = await db.membership.findUniqueOrThrow({ where: { id: membership.id } });
+    assert.equal(again.tourSeenAt?.getTime(), membership.tourSeenAt?.getTime());
+    assert.equal((await call(platform, 'onboarding')).data.seen, false);
+    // A second organization and another member must each receive their own first-run tour.
+    const org = await db.organization.create({
+      data: { name: 'آزمون آموزش', slug: 'tour-' + randomUUID() },
+    });
+    await db.membership.create({
+      data: { userId: boot.user.id, organizationId: org.id, role: 'VIEWER' },
+    });
+    await call(c, 'auth/switch', 'POST', { organizationId: org.id });
+    assert.equal((await call(c, 'onboarding')).data.seen, false);
+    await call(c, 'onboarding', 'PATCH', {});
+    assert.equal((await call(c, 'onboarding')).data.seen, true);
+    await call(c, 'auth/switch', 'POST', { organizationId: boot.organizationId });
+    assert.equal((await call(c, 'onboarding')).data.seen, true);
+  });
   const created: Record<string, any> = {};
   let serial = 0;
   const create = async (key: string, input: any, status?: string) => {

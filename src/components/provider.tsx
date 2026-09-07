@@ -5,6 +5,7 @@ import { CheckCircle2, X, AlertCircle } from 'lucide-react';
 import type { Row, Scope, User } from '@/lib/types';
 import { Confirm } from './ui';
 type Boot = {
+  organizationId?: string;
   user: User;
   scope: Scope;
   companies: Row[];

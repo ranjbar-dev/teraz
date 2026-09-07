@@ -101,6 +101,8 @@ class ApiController {
         }
       }
       const p = await this.auth.principal(req);
+      if (key === 'onboarding' && !id && ['GET', 'PATCH'].includes(method))
+        return res.json(await this.identity.tour(p, method === 'PATCH'));
       if (key === 'local-mail' && method === 'GET') return res.json(await this.identity.inbox(p));
       if (key === 'auth' && id === 'request-verification' && method === 'POST')
         return res.json(await this.identity.requestVerification(p));

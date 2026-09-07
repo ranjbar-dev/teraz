@@ -13,6 +13,7 @@ model User {
   globalRole String @default("USER")
   active Boolean @default(true)
   emailVerifiedAt DateTime?
+  tourSeenAt DateTime?
   createdAt DateTime @default(now())
   memberships Membership[]
   sessions Session[]
@@ -36,6 +37,7 @@ model Membership {
   role String @default("VIEWER")
   companyIds Json @default("[]")
   permissions Json @default("[]")
+  tourSeenAt DateTime?
   active Boolean @default(true)
   organization Organization @relation(fields:[organizationId], references:[id])
   user User @relation(fields:[userId], references:[id])

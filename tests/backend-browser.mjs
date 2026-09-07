@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert/strict';
+import { testTours } from './tour-browser.mjs';
 const root = path.resolve(import.meta.dirname, '..'),
   base = 'http://localhost:3100';
 const fixture = JSON.parse(
@@ -43,6 +44,7 @@ try {
     headless: true,
     channel: 'chrome',
   });
+  await testTours(browser, base, artifact);
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1000 },
     locale: 'fa-IR',

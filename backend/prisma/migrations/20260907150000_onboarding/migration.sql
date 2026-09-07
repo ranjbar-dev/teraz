@@ -1,0 +1,2 @@
+ALTER TABLE "User" ADD COLUMN "tourSeenAt" TIMESTAMP(3);
+ALTER TABLE "Membership" ADD COLUMN "tourSeenAt" TIMESTAMP(3);

@@ -2,7 +2,8 @@
 import { SearchSelect } from './search-select';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { GuidedTour } from './guided-tour';
 import {
   ArrowUpLeft,
   Bell,
@@ -297,6 +298,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
             </SearchSelect>
           </div>
           <div className="topbar-left">
+            <Suspense>
+              <GuidedTour key={boot.user.id + ':' + boot.organizationId} />
+            </Suspense>
             <button className="global-search" onClick={() => setSearchOpen(true)}>
               <Search size={17} />
               <span>جست‌وجو در تراز…</span>
