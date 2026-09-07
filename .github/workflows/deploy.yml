@@ -1,0 +1,172 @@
+name: Production CI and deployment
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - 'artifacts/**'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - 'artifacts/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18-bookworm
+        env:
+          POSTGRES_USER: taraz
+          POSTGRES_PASSWORD: ci_database_password
+          POSTGRES_DB: taraz_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U taraz -d taraz_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://taraz:ci_database_password@127.0.0.1:5432/taraz_test
+      ENCRYPTION_KEY: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      SUPER_ADMIN_EMAIL: owner@test.taraz.local
+      SUPER_ADMIN_PASSWORD: ci-test-password-very-long
+      API_PORT: '4001'
+      WEB_ORIGIN: http://localhost:3100
+      LOCAL_SANDBOX: 'true'
+      PAYMENT_MODE: local
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix backend
+      - run: npm run db:generate --prefix backend
+      - run: npx next typegen
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build --prefix backend
+      - name: Backend integration tests against isolated PostgreSQL
+        run: |
+          set -euo pipefail
+          npm run db:migrate --prefix backend
+          node backend/dist/seed.js
+          node backend/dist/main.js > /tmp/taraz-test-api.log 2>&1 &
+          api_pid=$!
+          trap 'kill "$api_pid" || true' EXIT
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:4001/api/health; then break; fi
+            if ! kill -0 "$api_pid" 2>/dev/null; then cat /tmp/taraz-test-api.log; exit 1; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:4001/api/health
+          npm test --prefix backend
+
+  build:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: taraz-frontend:${{ github.sha }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+      - name: Build backend
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          target: runtime
+          load: true
+          tags: taraz-backend:${{ github.sha }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+      - name: Build migration runner
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          target: migrate
+          load: true
+          tags: taraz-migrate:${{ github.sha }}
+          cache-from: type=gha,scope=backend
+      - name: Smoke test the complete application
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+          POSTGRES_PASSWORD: ci_database_password
+          ENCRYPTION_KEY: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          SUPER_ADMIN_EMAIL: ci@example.test
+          SUPER_ADMIN_PASSWORD: ci-test-password-very-long
+        run: |
+          docker compose up -d --wait --wait-timeout 180 db backend frontend
+          docker compose exec -T backend node -e "fetch('http://127.0.0.1:4000/api/health').then(async r=>{if(!r.ok || !(await r.json()).ok)process.exit(1)})"
+          docker compose run --rm --no-deps caddy caddy validate --config /etc/caddy/Caddyfile
+          docker compose down -v
+      - name: Package verified images
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: |
+          mkdir -p bundle/deploy
+          cp compose.yaml bundle/
+          cp deploy/Caddyfile deploy/deploy.sh bundle/deploy/
+          docker save taraz-frontend:${{ github.sha }} taraz-backend:${{ github.sha }} taraz-migrate:${{ github.sha }} | gzip -1 > bundle/images.tar.gz
+      - uses: actions/upload-artifact@v4
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        with:
+          name: production-release
+          path: bundle/
+          retention-days: 2
+          compression-level: 0
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://ranjbar.dev
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: production-release
+          path: bundle
+      - name: Transfer and deploy
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          trap 'rm -f ~/.ssh/deploy_key' EXIT
+          remote="$DEPLOY_USER@$DEPLOY_HOST"
+          ssh_args=(-i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=20)
+          ssh "${ssh_args[@]}" -p "$DEPLOY_PORT" "$remote" "mkdir -p /opt/taraz/releases/$RELEASE_SHA"
+          scp "${ssh_args[@]}" -P "$DEPLOY_PORT" -r bundle/. "$remote:/opt/taraz/releases/$RELEASE_SHA/"
+          ssh "${ssh_args[@]}" -p "$DEPLOY_PORT" "$remote" "bash /opt/taraz/releases/$RELEASE_SHA/deploy/deploy.sh $RELEASE_SHA"

@@ -59,7 +59,7 @@ class ApiController {
       }
       if (key === 'health') {
         await db.$queryRaw`SELECT 1`;
-        return res.json({ ok: true, database: 'postgresql', mode: 'local', version: '1.0.0' });
+        return res.json({ ok: true, database: 'postgresql', mode: process.env.NODE_ENV || 'development', version: '1.0.0' });
       }
       if (key === 'plans' && method === 'GET')
         return res.json({ rows: await this.billing.plans() });
@@ -332,6 +332,8 @@ async function main() {
   if (!process.env.DATABASE_URL || !process.env.ENCRYPTION_KEY)
     throw new Error('Run local setup first; DATABASE_URL and ENCRYPTION_KEY are required.');
   const app = await NestFactory.create(ApiModule, { bodyParser: false });
+  // Production API traffic comes directly from the private Caddy network.
+  if (process.env.TRUST_PROXY === 'true') app.getHttpAdapter().getInstance().set('trust proxy', 1);
   app.use(helmet());
   app.use(bodyJson({ limit: '8mb' }));
   const config = new DocumentBuilder()
@@ -379,7 +381,8 @@ async function main() {
   }
   SwaggerModule.setup('docs', app, doc, { jsonDocumentUrl: 'docs/json' });
   await db.$connect();
-  await app.listen(Number(process.env.API_PORT || 4000), '127.0.0.1');
+  const host = process.env.API_HOST || '127.0.0.1';
+  await app.listen(Number(process.env.API_PORT || 4000), host);
   const stopWorker = runWorker();
   app.enableShutdownHooks();
   for (const signal of ['SIGINT', 'SIGTERM'] as const)
@@ -390,7 +393,7 @@ async function main() {
         .then(() => db.$disconnect())
         .then(() => process.exit(0));
     });
-  console.log('Taraz API listening at http://127.0.0.1:' + (process.env.API_PORT || 4000));
+  console.log(`Taraz API listening at http://${host}:${process.env.API_PORT || 4000}`);
 }
 main().catch((e) => {
   console.error(e);

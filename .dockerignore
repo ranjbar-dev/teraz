@@ -1,0 +1,16 @@
+**/node_modules
+**/.next
+**/.env*
+**/dist
+**/generated
+**/uploads
+.git
+.runtime
+.data*
+.npm-cache
+artifacts
+test-results
+playwright-report
+*.log
+*.tsbuildinfo
+backend
