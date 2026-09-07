@@ -15,6 +15,9 @@ image applies Prisma migrations and idempotently creates plans and the platform
 owner. Only Caddy publishes ports (80 and 443 TCP, 443 UDP). Database and API ports
 are private. Caddy sends `/api/*` directly to NestJS and other requests to Next.js.
 Cookies are secure and local laboratory features are disabled in production.
+Only official Cloudflare proxy ranges are trusted for client IP headers, so API
+rate limiting sees individual visitors rather than a shared Cloudflare address.
+Review those ranges against https://www.cloudflare.com/ips/ when changing proxies.
 
 Named volumes `taraz_postgres_data`, `taraz_uploads`, `taraz_caddy_data`, and
 `taraz_caddy_config` survive updates and server restarts. Never use `down -v` on
