@@ -25,8 +25,11 @@ are cached in GitHub, keeping compilation off the small production server.
 Deployment uses commit SHA image tags and serializes execution with a server lock.
 The API pauses briefly during migrations and replacement; this is not a zero
 downtime deployment. Deployments back up PostgreSQL and uploads before migrations.
-Application images revert on a failed update when a previous release exists;
-database migrations are never automatically reversed. Use backward-compatible
+Application images revert on a failed update when a previous release exists.
+The current and previous releases' images are retained. Deployment-generated
+database and upload backups expire after 14 days on a successful deployment;
+the initial Nginx/configuration backups are retained.
+Database migrations are never automatically reversed. Use backward-compatible
 migrations so the previous application can continue to use the upgraded schema.
 
 ## Server layout and credentials

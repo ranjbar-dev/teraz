@@ -51,6 +51,18 @@ for attempt in $(seq 1 30); do
     ln -sfn "$release" "$root/current"
     printf '%s\n' "$tag" > "$root/deployed-sha"
     echo "Deployed $tag successfully to https://ranjbar.dev"
+    # Keep this and the previous release's images; avoid filling a small server.
+    previous_tag="$(basename "${previous:-none}")"
+    while IFS= read -r image; do
+      repository="${image%:*}"
+      image_tag="${image##*:}"
+      case "$repository" in taraz-frontend|taraz-backend|taraz-migrate) ;; *) continue ;; esac
+      if [[ "$image_tag" =~ ^[a-f0-9]{40}$ && "$image_tag" != "$tag" && "$image_tag" != "$previous_tag" ]]; then
+        docker image rm "$image" || true
+      fi
+    done < <(docker image ls --format '{{.Repository}}:{{.Tag}}')
+    # Only deployment-generated dated backups expire; keep the Nginx archive.
+    find "$root/backups" -maxdepth 1 -type f \( -name '20??????T??????Z.dump' -o -name '20??????T??????Z-uploads.tar.gz' \) -mtime +14 -delete
     exit 0
   fi
   sleep 5
