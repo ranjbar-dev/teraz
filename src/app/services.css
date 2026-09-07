@@ -798,11 +798,28 @@
 .local-lab .form-panel {
   padding: 28px;
 }
-.local-lab .saas-form-actions { flex-wrap: wrap; }
+.local-lab .saas-form-actions {
+  flex-wrap: wrap;
+}
 @media (max-width: 640px) {
   .local-lab {
     padding: 24px 14px;
   }
-  .local-lab .saas-form-actions { flex-direction: column; align-items: stretch; }
-  .local-lab .saas-form-actions > .btn { width: 100%; justify-content: center; }
+  .local-lab .saas-form-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .local-lab .saas-form-actions > .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+.payroll-export-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: 16px;
+  padding-top: 20px;
+  margin-top: 16px;
+  border-top: 1px solid #e0e9e2;
+  font-variant-numeric: tabular-nums;
 }

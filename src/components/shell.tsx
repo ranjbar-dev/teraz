@@ -140,6 +140,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <div className="nav-section-label">حساب سازمان</div>
           {[
             { key: 'profile', title: 'حساب و سازمان‌ها', icon: 'users' },
+            { key: 'payroll-exports', title: 'خروجی‌های حقوق', icon: 'receipt' },
             ...(boot.user.role === 'مدیر'
               ? [
                   { key: 'subscription', title: 'اشتراک سازمان', icon: 'shield' },

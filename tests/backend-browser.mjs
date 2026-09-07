@@ -97,6 +97,7 @@ try {
     'profile',
     'integrations',
     'payroll-rules',
+    'payroll-exports',
     'period-close',
   ])
     await check('/' + r);
@@ -163,6 +164,22 @@ try {
     document.querySelector('tbody')?.textContent?.includes('موفق در شبیه‌ساز محلی'),
   );
   await page.screenshot({ path: path.join(artifact, 'local-queue-desktop.png'), fullPage: true });
+  await check('/payroll-exports');
+  await page.getByRole('button', { name: 'لیست بیمه', exact: true }).click();
+  const insuranceDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'خروجی اکسل', exact: true }).click();
+  const insuranceFile = path.join(root, '.runtime/sample-insurance.xlsx');
+  await (await insuranceDownload).saveAs(insuranceFile);
+  const insuranceWorkbook = new ExcelJS.Workbook();
+  await insuranceWorkbook.xlsx.readFile(insuranceFile);
+  assert.ok(insuranceWorkbook.worksheets[0].rowCount >= 2);
+  assert.ok(insuranceWorkbook.worksheets[0].getRow(1).values.includes('دستمزد مشمول بیمه'));
+  await page.screenshot({
+    path: path.join(artifact, 'payroll-exports-desktop.png'),
+    fullPage: true,
+  });
+  await page.getByRole('button', { name: 'لیست مالیات', exact: true }).click();
+  assert.ok(await page.getByRole('columnheader', { name: 'پایهٔ مشمول مالیات' }).count());
   await context.addCookies([cookie(fixture.platformCookie)]);
   await check('/platform');
   await page.screenshot({ path: path.join(artifact, 'platform-desktop.png'), fullPage: true });

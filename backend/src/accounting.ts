@@ -592,7 +592,14 @@ export class AccountingService {
       line('insurance', 0, insurance.add(employer));
       line('salary-tax', 0, tax);
       line('payable', 0, deductions);
-      snapshot = { ...snapshot, calculationSnapshot: { ...d } };
+      const employee = await tx.record.findFirstOrThrow({
+        where: { id: d.employeeId, companyId: s.companyId, module: 'employees' },
+      });
+      snapshot = {
+        ...snapshot,
+        calculationSnapshot: { ...d },
+        employeeSnapshot: { ...(employee.data as any), name: employee.name, code: employee.code },
+      };
     } else if (key === 'depreciation') {
       const asset = await tx.record.findUniqueOrThrow({ where: { id: d.assetId } });
       const a = asset.data as any;

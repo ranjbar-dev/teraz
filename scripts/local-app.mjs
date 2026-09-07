@@ -44,14 +44,14 @@ if (cmd === 'status') {
 }
 if (cmd === 'stop') {
   for (const [name, record] of Object.entries(existing)) {
-    if (alive(record.pid)) {
+    if (owned(record, name)) {
       // Verify the process is still the exact child recorded by this project before stopping its tree.
       const check = spawnSync(
         'powershell.exe',
         [
           '-NoProfile',
           '-Command',
-          `$p=Get-CimInstance Win32_Process -Filter 'ProcessId = ${Number(record.pid)}'; if ($p -and $p.CommandLine.Contains('${root.replaceAll("'", "''")}') -and $p.Name -eq 'node.exe') { Stop-Process -Id $p.ProcessId -Force; Write-Output 'stopped' }`,
+          `$p=Get-CimInstance Win32_Process -Filter 'ProcessId = ${Number(record.pid)}'; if ($p -and $p.CommandLine.Contains('${root.replaceAll("'", "''")}') -and $p.Name -eq 'node.exe') { & taskkill.exe /PID $p.ProcessId /T /F }`,
         ],
         { windowsHide: true, encoding: 'utf8' },
       );

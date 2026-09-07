@@ -5,6 +5,7 @@ import { db, transaction, passwordHash, Principal, Scope } from './core';
 import { createOrganization } from './provision';
 import { RecordsService } from './records';
 import { PayrollService, samplePayrollRules } from './payroll';
+import { seedPayrollPreview } from './seed-payroll-preview';
 async function seed() {
   const slug = 'taraz-demo';
   if (await db.organization.findUnique({ where: { slug } })) {
@@ -343,6 +344,7 @@ async function seed() {
   console.log('Real demo transactions created. Login details: .runtime/demo-credentials.json');
 }
 seed()
+  .then(() => seedPayrollPreview())
   .then(() => db.$disconnect())
   .catch(async (e) => {
     console.error(e.message);

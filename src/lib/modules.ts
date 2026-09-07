@@ -577,6 +577,7 @@ extend('people', [
 ]);
 extend('products', [f('taxId', 'شناسه کالا/خدمت مالیاتی'), f('taxUnit', 'کد واحد مالیاتی')]);
 extend('stock', [f('unitCost', 'بهای هر واحد رسید', 'money', { default: 0, min: 0 })]);
+extend('employees', [f('insuranceNumber', 'شماره بیمه')]);
 extend('sales-returns', [
   f('originalInvoiceId', 'فاکتور فروش مرجع', 'select', { ref: 'sales', required: true }),
 ]);

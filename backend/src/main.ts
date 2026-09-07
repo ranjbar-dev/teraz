@@ -245,6 +245,8 @@ class ApiController {
       }
       if (key === 'payroll-calculate' && method === 'POST')
         return res.json(await this.payroll.preview(p, s, input));
+      if (key === 'payroll-exports' && method === 'GET')
+        return res.json(await this.payroll.exportRows(p, s, q));
       if (key === 'period-close' && method === 'POST')
         return res.json(await this.periods.close(p, s, input));
       if (key === 'integrations') {

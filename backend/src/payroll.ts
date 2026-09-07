@@ -14,6 +14,7 @@ import {
   transaction,
   validDate,
   audit,
+  recordWhere,
 } from './core';
 const numeric = z
   .union([z.number(), z.string()])
@@ -136,6 +137,88 @@ export function calculatePayroll(input: any, rules: any, baseCurrency: string) {
   };
 }
 export class PayrollService {
+  async exportRows(p: Principal, s: Scope, q: any = {}) {
+    requirePermission(p, 'payroll.read');
+    const company = await db.company.findUniqueOrThrow({ where: { id: s.companyId } });
+    if (!['IRT', 'IRR'].includes(company.baseCurrency))
+      throw new ApiError('خروجی حقوق ایران برای ارز ریال یا تومان است.', 422);
+    const from = q.from ? validDate(q.from) : undefined,
+      to = q.to ? validDate(q.to) : undefined;
+    if (from && to && from > to) throw new ApiError('بازهٔ تاریخ معتبر نیست.', 422);
+    const records = await db.record.findMany({
+      where: {
+        ...recordWhere(s, 'payroll'),
+        postedAt: { not: null },
+        reversedAt: null,
+        ...(q.month ? { data: { path: ['month'], equals: String(q.month) } } : {}),
+        ...(from || to
+          ? { date: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } }
+          : {}),
+      },
+      orderBy: [{ date: 'asc' }, { code: 'asc' }],
+    });
+    const employees = await db.record.findMany({
+      where: {
+        companyId: s.companyId,
+        module: 'employees',
+        id: { in: records.map((r) => String((r.data as any).employeeId)) },
+      },
+    });
+    const lookup = new Map(employees.map((e) => [e.id, e]));
+    const rows = records.map((r) => {
+      const d = r.data as any,
+        c = d.calculationSnapshot || d,
+        e = lookup.get(d.employeeId),
+        person = d.employeeSnapshot || { ...(e?.data as any), name: e?.name, code: e?.code };
+      const factor =
+        c.baseCurrency === 'IRR'
+          ? D(1)
+          : c.baseCurrency === 'IRT'
+            ? D(10)
+            : D(company.baseCurrency === 'IRT' ? 10 : 1);
+      const rial = (value: any) => money(D(value || 0).mul(factor));
+      return {
+        id: r.id,
+        code: r.code,
+        date: r.date?.toISOString().slice(0, 10),
+        month: d.month,
+        name: person.name || '',
+        employeeCode: person.code || '',
+        nationalId: person.nationalId || '',
+        insuranceNumber: person.insuranceNumber || '',
+        days: Number(c.days || d.days || 30),
+        baseIRR: rial(c.base),
+        benefitsIRR: rial(c.benefits),
+        grossIRR: rial(c.gross || D(c.base).add(c.benefits || 0)),
+        insuranceBaseIRR: money(c.insuranceBaseIRR || 0),
+        employeeInsuranceIRR: rial(c.insurance),
+        employerInsuranceIRR: rial(c.employerInsurance),
+        taxableBaseIRR: money(c.taxableBaseIRR || 0),
+        taxIRR: rial(c.tax),
+        deductionsIRR: rial(c.deductions),
+        netIRR: rial(r.total),
+        currency: 'ریال',
+        ruleName: c.ruleName || d.ruleName || '',
+        ruleSource: c.ruleSource || d.ruleSource || '',
+        mode: 'آزمایشی؛ غیرقابل ارسال رسمی',
+      };
+    });
+    const sum = (key: keyof (typeof rows)[number]) =>
+      money(rows.reduce((v, r) => v.add(D(r[key] || 0)), D(0)));
+    return {
+      rows,
+      mode: 'local-preview',
+      currency: 'IRR',
+      summary: {
+        count: rows.length,
+        grossIRR: sum('grossIRR'),
+        netIRR: sum('netIRR'),
+        insuranceIRR: money(D(sum('employeeInsuranceIRR')).add(sum('employerInsuranceIRR'))),
+        taxIRR: sum('taxIRR'),
+      },
+      notice: 'خروجی آزمایشی از فیش‌های قطعی؛ قالب رسمی بارگذاری بیمه یا مالیات نیست.',
+    };
+  }
   async list(p: Principal, s: Scope) {
     requirePermission(p, 'payroll.read');
     return {

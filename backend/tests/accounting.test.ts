@@ -802,6 +802,30 @@ test('real PostgreSQL + HTTP accounting and SaaS workflows', async (t) => {
       else process.env.NODE_ENV = previous;
     }
   });
+  await t.test('sample payroll exports use posted snapshots and exact rial totals', async () => {
+    const result = (await call(c, 'payroll-exports')).data;
+    assert.equal(result.mode, 'local-preview');
+    assert.ok(result.rows.length > 0);
+    const row = result.rows.find((r: any) => r.id === created.payroll.id);
+    assert.ok(row);
+    const payslip = (await call(c, 'payroll/' + row.id)).data;
+    assert.equal(D(row.netIRR).toString(), D(payslip.total).mul(10).toString());
+    const employee = (await call(c, 'employees/' + payslip.employeeId)).data;
+    await call(c, 'employees/' + employee.id, 'PATCH', {
+      name: 'نام جدید پس از صدور فیش',
+      version: employee.version,
+    });
+    const refreshed = (await call(c, 'payroll-exports')).data;
+    assert.equal(refreshed.rows.find((r: any) => r.id === row.id).name, row.name);
+    assert.equal(
+      (await call(c, 'payroll-exports?from=2027-01-01&to=2027-02-01')).data.rows.length,
+      0,
+    );
+    assert.equal(
+      D(result.summary.netIRR).toString(),
+      result.rows.reduce((sum: any, r: any) => sum.add(r.netIRR), D(0)).toString(),
+    );
+  });
   await t.test(
     'local Modian simulation accepts only a posted invoice in the current company',
     async () => {
