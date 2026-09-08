@@ -13,14 +13,20 @@ flock -w 600 9
 export IMAGE_TAG="$tag"
 compose=(docker compose --env-file "$root/.env" -f "$release/compose.yaml")
 "${compose[@]}" config --quiet
+command -v caddy >/dev/null || { echo 'Run deploy/install-host-caddy.sh on the server first.'; exit 1; }
+domain="$(sed -n 's/^DOMAIN=//p' "$root/.env" | tr -d '\r')"
+domain="${domain:-ranjbar.dev}"
+[[ "$domain" =~ ^[A-Za-z0-9.-]+$ ]] || { echo 'Invalid DOMAIN'; exit 1; }
+DOMAIN="$domain" caddy validate --config "$release/deploy/Caddyfile" --adapter caddyfile
 previous="$(readlink -f "$root/current" || true)"
 docker load -i "$release/images.tar.gz"
 rm -- "$release/images.tar.gz"
-"${compose[@]}" pull db caddy
+"${compose[@]}" pull db
 "${compose[@]}" up -d --wait db
 
 # Take a consistent database dump before migrations. Never delete data volumes.
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+cp /etc/caddy/Caddyfile "$root/backups/$stamp-Caddyfile"
 "${compose[@]}" exec -T db pg_dump -U taraz -d taraz -Fc > "$root/backups/$stamp.dump"
 test -s "$root/backups/$stamp.dump"
 if docker volume inspect taraz_uploads >/dev/null 2>&1; then
@@ -34,8 +40,11 @@ rollback() {
   "${compose[@]}" ps -a || true
   if [[ -n "$previous" && "$previous" != "$release" && -f "$previous/compose.yaml" ]]; then
     echo 'Restoring previous application images. Database migrations are not reversed.'
-    IMAGE_TAG="$(basename "$previous")" docker compose --env-file "$root/.env" -f "$previous/compose.yaml" up -d --no-deps --wait backend frontend caddy || true
+    # Keep the host networking even when restoring pre-migration app images.
+    IMAGE_TAG="$(basename "$previous")" docker compose --env-file "$root/.env" -f "$release/compose.yaml" up -d --no-deps --wait backend frontend || true
   fi
+  install -m 644 "$root/backups/$stamp-Caddyfile" /etc/caddy/Caddyfile
+  systemctl reload caddy || true
   exit "$status"
 }
 trap rollback ERR
@@ -44,13 +53,13 @@ trap rollback ERR
 "${compose[@]}" run --rm --no-deps migrate
 # Migration has just completed above; prevent Compose from repeating it.
 "${compose[@]}" up -d --no-deps --wait --wait-timeout 180 backend frontend
-"${compose[@]}" up -d --no-deps --force-recreate caddy
+bash "$release/deploy/apply-host-caddy.sh" "$release/deploy/Caddyfile" "$domain"
 for attempt in $(seq 1 30); do
-  if curl --fail --silent --show-error --max-time 10 https://ranjbar.dev/api/health >/dev/null &&
-     curl --fail --silent --show-error --max-time 10 https://ranjbar.dev/login >/dev/null; then
+  if curl --fail --silent --show-error --max-time 10 "https://$domain/api/health" >/dev/null &&
+     curl --fail --silent --show-error --max-time 10 "https://$domain/login" >/dev/null; then
     ln -sfn "$release" "$root/current"
     printf '%s\n' "$tag" > "$root/deployed-sha"
-    echo "Deployed $tag successfully to https://ranjbar.dev"
+    echo "Deployed $tag successfully to https://$domain"
     # Keep this and the previous release's images; avoid filling a small server.
     previous_tag="$(basename "${previous:-none}")"
     while IFS= read -r image; do
@@ -62,7 +71,7 @@ for attempt in $(seq 1 30); do
       fi
     done < <(docker image ls --format '{{.Repository}}:{{.Tag}}')
     # Only deployment-generated dated backups expire; keep the Nginx archive.
-    find "$root/backups" -maxdepth 1 -type f \( -name '20??????T??????Z.dump' -o -name '20??????T??????Z-uploads.tar.gz' \) -mtime +14 -delete
+    find "$root/backups" -maxdepth 1 -type f \( -name '20??????T??????Z.dump' -o -name '20??????T??????Z-uploads.tar.gz' -o -name '20??????T??????Z-Caddyfile' \) -mtime +14 -delete
     exit 0
   fi
   sleep 5

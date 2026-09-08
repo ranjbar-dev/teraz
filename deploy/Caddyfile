@@ -16,11 +16,11 @@
     }
     @api path /api /api/*
     handle @api {
-        reverse_proxy backend:4000 {
+        reverse_proxy 127.0.0.1:4000 {
             header_up X-Forwarded-For {client_ip}
         }
     }
     handle {
-        reverse_proxy frontend:3000
+        reverse_proxy 127.0.0.1:3000
     }
 }

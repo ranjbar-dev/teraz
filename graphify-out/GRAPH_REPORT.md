@@ -1,16 +1,16 @@
 # Graph Report - h  (2026-09-08)
 
 ## Corpus Check
-- 113 files · ~225,001 words
+- 115 files · ~225,544 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 698 nodes · 1474 edges · 59 communities (44 shown, 15 thin omitted)
+- 703 nodes · 1477 edges · 55 communities (40 shown, 15 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 6 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `c3ca0931`
+- Built from commit: `4374ed59`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -34,7 +34,6 @@
 - [[_COMMUNITY_Community 16|Community 16]]
 - [[_COMMUNITY_Community 17|Community 17]]
 - [[_COMMUNITY_Community 18|Community 18]]
-- [[_COMMUNITY_Community 19|Community 19]]
 - [[_COMMUNITY_Community 20|Community 20]]
 - [[_COMMUNITY_Community 21|Community 21]]
 - [[_COMMUNITY_Community 22|Community 22]]
@@ -64,9 +63,6 @@
 - [[_COMMUNITY_Community 48|Community 48]]
 - [[_COMMUNITY_Community 49|Community 49]]
 - [[_COMMUNITY_Community 50|Community 50]]
-- [[_COMMUNITY_Community 55|Community 55]]
-- [[_COMMUNITY_Community 56|Community 56]]
-- [[_COMMUNITY_Community 57|Community 57]]
 - [[_COMMUNITY_Community 58|Community 58]]
 
 ## God Nodes (most connected - your core abstractions)
@@ -84,35 +80,35 @@
 ## Surprising Connections (you probably didn't know these)
 - `sum()` --calls--> `D()`  [EXTRACTED]
   backend/src/reports.ts → backend/src/core.ts
+- `processJob()` --calls--> `json()`  [EXTRACTED]
+  backend/src/integrations.ts → backend/src/core.ts
+- `processJob()` --calls--> `requireLocalMode()`  [EXTRACTED]
+  backend/src/integrations.ts → backend/src/local-mode.ts
 - `Page()` --calls--> `NotFound()`  [INFERRED]
   src/app/(workspace)/[...slug]/page.tsx → src/app/not-found.tsx
 - `Dashboard()` --calls--> `date`  [INFERRED]
   src/components/dashboard.tsx → src/lib/modules.ts
-- `DataTable()` --calls--> `useApp()`  [EXTRACTED]
-  src/components/data-table.tsx → src/components/provider.tsx
-- `DatePicker()` --calls--> `date`  [INFERRED]
-  src/components/date-picker.tsx → src/lib/modules.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (59 total, 15 thin omitted)
+## Communities (55 total, 15 thin omitted)
 
 ### Community 0 - "Community 0"
-Cohesion: 0.21
-Nodes (15): Data, Column, DataTable(), normalize, TableQuery, TableResult, TableRow, Icon() (+7 more)
+Cohesion: 0.06
+Nodes (59): NotFound(), Dashboard(), Data, Column, DataTable(), normalize, TableQuery, TableResult (+51 more)
 
 ### Community 1 - "Community 1"
-Cohesion: 0.09
-Nodes (13): can(), Principal, recordWhere(), requirePermission(), Scope, FilesService, IdentityService, localNotification() (+5 more)
+Cohesion: 0.07
+Nodes (13): AuthService, can(), Principal, requirePermission(), Scope, FilesService, IdentityService, localNotification() (+5 more)
 
 ### Community 2 - "Community 2"
-Cohesion: 0.07
-Nodes (64): AccountingService, depreciationPeriod(), DReturn, Entry, invoiceTotal(), openYear(), registration, ApiError (+56 more)
+Cohesion: 0.08
+Nodes (64): bank, AccountingService, depreciationPeriod(), DReturn, Entry, invoiceTotal(), openYear(), registration (+56 more)
 
 ### Community 3 - "Community 3"
-Cohesion: 0.06
-Nodes (50): EntityEditor(), active(), amountOf(), bankBalance(), entries(), Entry, invoiceTotals(), number() (+42 more)
+Cohesion: 0.07
+Nodes (48): active(), amountOf(), bankBalance(), entries(), Entry, invoiceTotals(), number(), round() (+40 more)
 
 ### Community 4 - "Community 4"
 Cohesion: 0.05
@@ -142,10 +138,6 @@ Nodes (13): آزمون‌هایی که پیش از دادهٔ واقعی لاز�
 Cohesion: 0.14
 Nodes (13): sms.ir و ایمیل, اتصال‌های بیرونی, امنیت، ظرفیت و انتشار عمومی, حقوق، بیمه و مالیات ایران, راهنمای بک‌اند تراز, زرین‌پال, سامانهٔ مؤدیان, شواهد آزمون و منابع (+5 more)
 
-### Community 12 - "Community 12"
-Cohesion: 0.17
-Nodes (11): NotFound(), ModuleList(), useRows(), ReportsIndex(), ReportView(), Activity(), Help(), helpItems (+3 more)
-
 ### Community 13 - "Community 13"
 Cohesion: 0.18
 Nodes (11): dependencies, exceljs, @fontsource-variable/vazirmatn, jalaali-js, lucide-react, next, react, react-dom (+3 more)
@@ -165,10 +157,6 @@ Nodes (8): admin, { Client }, creds, databaseUrl, env, envText, require, root
 ### Community 17 - "Community 17"
 Cohesion: 0.27
 Nodes (6): login(), request(), server, testId, errors, selectValue()
-
-### Community 19 - "Community 19"
-Cohesion: 0.22
-Nodes (11): GuidedTour(), TourCatalog(), masterKeys, reports, introduction, pageTour(), services, step() (+3 more)
 
 ### Community 20 - "Community 20"
 Cohesion: 0.25
@@ -193,6 +181,10 @@ Nodes (7): امکانات پیاده‌شده, تراز — حسابداری چ�
 ### Community 25 - "Community 25"
 Cohesion: 0.25
 Nodes (5): bin, credentialsFile, data, root, runtime
+
+### Community 26 - "Community 26"
+Cohesion: 0.36
+Nodes (4): decrypt(), ModianClient, processJob(), signModian()
 
 ### Community 27 - "Community 27"
 Cohesion: 0.29
@@ -234,41 +226,29 @@ Nodes (3): failures, generatedAt, visited
 Cohesion: 0.50
 Nodes (3): modules, reports, testedAt
 
-### Community 55 - "Community 55"
-Cohesion: 0.24
-Nodes (10): Dashboard(), DatePicker(), months, DocumentLines(), EntityDetail(), FieldInput(), LineEditor(), useApp() (+2 more)
-
-### Community 56 - "Community 56"
-Cohesion: 0.25
-Nodes (5): icons, Logo(), Option, Props, normalizeSearch()
-
-### Community 57 - "Community 57"
-Cohesion: 0.22
-Nodes (6): AppContext, AppProvider(), Boot, Context, Shell(), Confirm()
-
 ### Community 58 - "Community 58"
 Cohesion: 0.33
 Nodes (5): Automatic hooks, Graphify workflow, Human-maintained documentation, Prerequisite, Refresh commands
 
 ## Knowledge Gaps
-- **288 isolated node(s):** `PreToolUse`, `PreToolUse`, `singleQuote`, `trailingComma`, `tabWidth` (+283 more)
+- **291 isolated node(s):** `PreToolUse`, `PreToolUse`, `singleQuote`, `trailingComma`, `tabWidth` (+286 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **15 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `bank` connect `Community 3` to `Community 2`?**
-  _High betweenness centrality (0.118) - this node is a cross-community bridge._
-- **Why does `Principal` connect `Community 1` to `Community 2`, `Community 18`?**
-  _High betweenness centrality (0.059) - this node is a cross-community bridge._
+- **Why does `bank` connect `Community 2` to `Community 3`?**
+  _High betweenness centrality (0.117) - this node is a cross-community bridge._
+- **Why does `Principal` connect `Community 1` to `Community 2`?**
+  _High betweenness centrality (0.058) - this node is a cross-community bridge._
 - **Why does `Scope` connect `Community 1` to `Community 2`?**
-  _High betweenness centrality (0.026) - this node is a cross-community bridge._
+  _High betweenness centrality (0.025) - this node is a cross-community bridge._
 - **What connects `PreToolUse`, `PreToolUse`, `singleQuote` to the rest of the system?**
-  _288 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _291 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `Community 0` be split into smaller, more focused modules?**
+  _Cohesion score 0.06106442577030812 - nodes in this community are weakly interconnected._
 - **Should `Community 1` be split into smaller, more focused modules?**
-  _Cohesion score 0.08619777895293496 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07204968944099378 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**
-  _Cohesion score 0.07474747474747474 - nodes in this community are weakly interconnected._
-- **Should `Community 3` be split into smaller, more focused modules?**
-  _Cohesion score 0.06479113384484228 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07515151515151515 - nodes in this community are weakly interconnected._

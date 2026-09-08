@@ -190,8 +190,8 @@
     "semantic_hash": ""
   },
   "deploy/deploy.sh": {
-    "mtime": 1788787954.5024107,
-    "ast_hash": "bf9ae38e653e0f2fc19e7d76fd2e238c",
+    "mtime": 1788878131.7329023,
+    "ast_hash": "ab19f223c705efd65457166db3e9c066",
     "semantic_hash": ""
   },
   "next-env.d.ts": {
@@ -505,8 +505,8 @@
     "semantic_hash": ""
   },
   ".github/workflows/deploy.yml": {
-    "mtime": 1788787795.2516506,
-    "ast_hash": "ddc07d1351032ec8ae73d898e2fed53f",
+    "mtime": 1788878132.1143625,
+    "ast_hash": "efb7e807ae16587c37bc057cea748452",
     "semantic_hash": ""
   },
   "AGENT.md": {
@@ -530,8 +530,8 @@
     "semantic_hash": ""
   },
   "compose.yaml": {
-    "mtime": 1788787499.8573935,
-    "ast_hash": "1972c2c6d2d89e5060512f3a83f41dd3",
+    "mtime": 1788878130.1742125,
+    "ast_hash": "945b59920e33dc5e406f8ed54a1e5175",
     "semantic_hash": ""
   },
   "docs/BACKEND-IMPLEMENTATION.md": {
@@ -565,8 +565,8 @@
     "semantic_hash": ""
   },
   "docs/PRODUCTION.md": {
-    "mtime": 1788788280.107381,
-    "ast_hash": "f3e53a75fa0810e7c2892ab115887cf7",
+    "mtime": 1788878241.1840022,
+    "ast_hash": "31194bc2fa7819afc9257e115da400dc",
     "semantic_hash": ""
   },
   "artifacts/backend-review/dashboard-desktop.png": {
@@ -772,6 +772,16 @@
   "docs/GRAPHIFY.md": {
     "mtime": 1788856836.7639458,
     "ast_hash": "b870a1936fbfcb223f930d60b8627f47",
+    "semantic_hash": ""
+  },
+  "deploy/apply-host-caddy.sh": {
+    "mtime": 1788878131.3481421,
+    "ast_hash": "c60ee2d6d15f82d63003fd379f147108",
+    "semantic_hash": ""
+  },
+  "deploy/install-host-caddy.sh": {
+    "mtime": 1788878130.950495,
+    "ast_hash": "cef8073ea4f530be80d0c8b7c1800a17",
     "semantic_hash": ""
   }
 }
